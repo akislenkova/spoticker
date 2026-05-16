@@ -9,11 +9,14 @@ import {
   awsRangeColor,
   evictionColor,
 } from "./gpu-map";
+import { awsEc2LaunchUrl, azureVmCreateUrl } from "./cloud-links";
 
 export type CellData = {
   price: number | null;
   evictionLabel: string | null;
   color: CellColor;
+  href?: string;
+  instanceLabel?: string;
 };
 
 export type MatrixColumn = {
@@ -32,11 +35,17 @@ export type MatrixData = {
   rows: MatrixRow[];
 };
 
+type CellEntry = {
+  price: number;
+  evictionLabel: string | null;
+  color: CellColor;
+  instanceLabel: string;
+  href: string;
+};
+
 // ── AWS ──────────────────────────────────────────────────────────────────────
 
-async function fetchAws(): Promise<
-  Map<string, { price: number; evictionLabel: string | null; color: CellColor }>
-> {
+async function fetchAws(): Promise<Map<string, CellEntry>> {
   const { data: prices, error: pricesErr } = await supabase.rpc("latest_aws_spot_prices");
   if (pricesErr) console.error("[aws] latest_aws_spot_prices:", pricesErr.message);
 
@@ -49,10 +58,7 @@ async function fetchAws(): Promise<
 
   const advisorBlob = advisorRows?.[0]?.data?.spot_advisor ?? {};
 
-  const map = new Map<
-    string,
-    { price: number; evictionLabel: string | null; color: CellColor }
-  >();
+  const map = new Map<string, CellEntry>();
 
   for (const row of prices ?? []) {
     const gpu = awsGpu(row.instance_type);
@@ -66,7 +72,13 @@ async function fetchAws(): Promise<
     const key = `${gpu}::aws:${row.region}`;
     const existing = map.get(key);
     if (!existing || row.price_usd < existing.price) {
-      map.set(key, { price: row.price_usd, evictionLabel, color });
+      map.set(key, {
+        price: row.price_usd,
+        evictionLabel,
+        color,
+        instanceLabel: row.instance_type,
+        href: awsEc2LaunchUrl(row.region, row.instance_type),
+      });
     }
   }
 
@@ -87,9 +99,7 @@ function telemetryLabel(evictionsPerHour: number): string {
   return `~${daily.toFixed(1)}%/day`;
 }
 
-async function fetchAzure(): Promise<
-  Map<string, { price: number; evictionLabel: string | null; color: CellColor }>
-> {
+async function fetchAzure(): Promise<Map<string, CellEntry>> {
   const [
     { data: prices, error: pricesErr },
     { data: evictions, error: evErr },
@@ -104,7 +114,6 @@ async function fetchAzure(): Promise<
   if (evErr) console.error("[azure] latest_azure_eviction_rates:", evErr.message);
   if (telErr) console.error("[azure] eviction_rates_30d:", telErr.message);
 
-  // Resource Graph eviction map: skuName::location → {label, color}
   const rgMap = new Map<string, { label: string; color: CellColor }>();
   for (const e of evictions ?? []) {
     rgMap.set(`${e.skuName}::${e.location}`, {
@@ -113,7 +122,6 @@ async function fetchAzure(): Promise<
     });
   }
 
-  // Telemetry eviction map: region → {label, color}
   const telMap = new Map<string, { label: string; color: CellColor }>();
   for (const t of telemetry ?? []) {
     if (t.evictions_per_hour != null) {
@@ -124,16 +132,13 @@ async function fetchAzure(): Promise<
     }
   }
 
-  const map = new Map<
-    string,
-    { price: number; evictionLabel: string | null; color: CellColor }
-  >();
+  const map = new Map<string, CellEntry>();
 
   for (const row of prices ?? []) {
-    const gpu = azureGpu(row.arm_sku_name ?? row.sku_name ?? "");
+    const sku = row.arm_sku_name ?? row.sku_name ?? "";
+    const gpu = azureGpu(sku);
     if (!gpu) continue;
 
-    // Prefer Resource Graph data, fall back to telemetry
     const ev = rgMap.get(`${row.arm_sku_name}::${row.region}`)
       ?? telMap.get(row.region)
       ?? null;
@@ -145,6 +150,8 @@ async function fetchAzure(): Promise<
         price: row.retail_price,
         evictionLabel: ev?.label ?? null,
         color: ev?.color ?? "gray",
+        instanceLabel: sku,
+        href: azureVmCreateUrl(row.region),
       });
     }
   }
@@ -186,7 +193,13 @@ export async function buildMatrix(): Promise<MatrixData> {
         return [
           key,
           d
-            ? { price: d.price, evictionLabel: d.evictionLabel, color: d.color }
+            ? {
+                price: d.price,
+                evictionLabel: d.evictionLabel,
+                color: d.color,
+                href: d.href,
+                instanceLabel: d.instanceLabel,
+              }
             : { price: null, evictionLabel: null, color: "gray" as CellColor },
         ];
       })

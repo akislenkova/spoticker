@@ -19,6 +19,12 @@ const DOT: Record<CellColor, string> = {
   gray:   "bg-zinc-600",
 };
 
+/** Fixed cell chrome so AWS/Azure boxes stay uniform despite long SKU names. */
+const CELL_BOX =
+  "w-[104px] h-[80px] flex flex-col items-center justify-center gap-0.5 rounded border px-2 py-1.5 text-center box-border";
+const CELL_TD = "px-2 py-1.5 w-[104px] align-middle";
+const COL_TH = "px-2 py-1.5 w-[104px] text-center text-[11px] font-normal text-zinc-500 border-l border-zinc-700 whitespace-nowrap";
+
 function spsColor(score: number): CellColor {
   if (score >= 8) return "green";
   if (score >= 5) return "yellow";
@@ -28,14 +34,22 @@ function spsColor(score: number): CellColor {
 function Cell({
   data,
   spsScore,
+  gpu,
+  cloud,
+  region,
 }: {
   data: CellData;
   spsScore?: number;
+  gpu: string;
+  cloud: string;
+  region: string;
 }) {
   if (data.price === null) {
     return (
-      <td className="px-3 py-2 text-center">
-        <div className="text-zinc-600 text-xs">—</div>
+      <td className={CELL_TD}>
+        <div className={`${CELL_BOX} border-zinc-800 bg-zinc-900/30`}>
+          <span className="text-zinc-600 text-xs">—</span>
+        </div>
       </td>
     );
   }
@@ -45,21 +59,67 @@ function Cell({
     ? `SPS ${spsScore}/10`
     : data.evictionLabel ?? null;
 
-  return (
-    <td className="px-2 py-1.5">
-      <div className={`rounded border px-2 py-1.5 text-center min-w-[80px] ${CELL_BG[color]}`}>
-        <div className="text-white font-mono text-sm font-medium">
-          ${data.price.toFixed(4)}
-        </div>
-        {label ? (
-          <div className="flex items-center justify-center gap-1 mt-0.5">
-            <span className={`inline-block w-1.5 h-1.5 rounded-full ${DOT[color]}`} />
-            <span className="text-zinc-400 text-[10px]">{label}</span>
-          </div>
+  const cloudName = CLOUD_LABEL[cloud] ?? cloud;
+  const ariaLabel = data.instanceLabel
+    ? `Open ${gpu} spot in ${region} (${data.instanceLabel}) in ${cloudName} console`
+    : `Open ${gpu} spot in ${region} in ${cloudName} console`;
+
+  const evictionText = label ?? "no eviction data";
+  const evictionMuted = label == null;
+
+  const inner = (
+    <div
+      className={`${CELL_BOX} transition-colors ${CELL_BG[color]} ${
+        data.href ? "hover:border-zinc-500 cursor-pointer" : ""
+      }`}
+    >
+      <div className="h-5 flex items-center justify-center text-white font-mono text-sm font-medium leading-none">
+        ${data.price.toFixed(4)}
+      </div>
+      <div className="h-4 flex items-center justify-center gap-1 w-full min-w-0">
+        <span className={`inline-block w-1.5 h-1.5 shrink-0 rounded-full ${DOT[color]}`} />
+        <span
+          className={`text-[10px] leading-none truncate max-w-[88px] ${
+            evictionMuted ? "text-zinc-600" : "text-zinc-400"
+          }`}
+        >
+          {evictionText}
+        </span>
+      </div>
+      <div
+        className="h-3.5 w-full min-w-0 text-zinc-500 text-[9px] leading-none truncate px-0.5"
+        title={data.instanceLabel}
+      >
+        {data.instanceLabel ? (
+          <>
+            {data.instanceLabel}
+            {data.href ? <span className="ml-0.5">↗</span> : null}
+          </>
         ) : (
-          <div className="text-zinc-600 text-[10px] mt-0.5">no eviction data</div>
+          <span className="invisible" aria-hidden>
+            —
+          </span>
         )}
       </div>
+    </div>
+  );
+
+  return (
+    <td className={CELL_TD}>
+      {data.href ? (
+        <a
+          href={data.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={data.instanceLabel}
+          aria-label={ariaLabel}
+          className="block w-[104px] no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 rounded"
+        >
+          {inner}
+        </a>
+      ) : (
+        inner
+      )}
     </td>
   );
 }
@@ -81,7 +141,7 @@ export default function PriceMatrix({
 
   return (
     <div className="overflow-x-auto rounded-lg border border-zinc-700">
-      <table className="text-sm border-collapse w-full">
+      <table className="text-sm border-collapse w-full table-fixed">
         <thead>
           <tr className="bg-zinc-900 border-b border-zinc-700">
             <th className="px-4 py-2 text-left text-zinc-500 font-medium w-20" rowSpan={2}>
@@ -99,10 +159,7 @@ export default function PriceMatrix({
           </tr>
           <tr className="bg-zinc-900 border-b border-zinc-700">
             {data.columns.map((col) => (
-              <th
-                key={col.key}
-                className="px-3 py-1.5 text-center text-[11px] font-normal text-zinc-500 border-l border-zinc-700 whitespace-nowrap"
-              >
+              <th key={col.key} className={COL_TH}>
                 {col.region}
               </th>
             ))}
@@ -122,6 +179,9 @@ export default function PriceMatrix({
                   key={col.key}
                   data={row.cells[col.key]}
                   spsScore={col.cloud === "aws" ? spsScores[col.region] : undefined}
+                  gpu={row.gpu}
+                  cloud={col.cloud}
+                  region={col.region}
                 />
               ))}
             </tr>
