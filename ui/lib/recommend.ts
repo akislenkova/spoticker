@@ -50,7 +50,7 @@ const RISK_TIER: Record<string, string> = {
   green: "LOW", yellow: "MEDIUM", red: "HIGH", gray: "UNKNOWN",
 };
 
-const SYSTEM_PROMPT = `You are Spotticker's recommendation engine. You have live GPU spot pricing data from the Spotticker catalog.
+const SYSTEM_PROMPT = `You are Spoticker's recommendation engine. You have live GPU spot pricing data from the Spoticker catalog.
 
 Given a workload description and a set of live pricing pages, return a specific, opinionated recommendation like a senior infra engineer would give.
 
@@ -123,7 +123,7 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
       `Eviction rate (7-day): ${evictionLabel ?? "unknown"} | Risk: ${riskTier}\n` +
       `Recommended for: ${recFor}\n` +
       `Not recommended for: ${notRecFor}\n` +
-      `Updated: ${now} | Source: Spotticker / AWS spot-bid-advisor`
+      `Updated: ${now} | Source: Spoticker / AWS spot-bid-advisor`
     );
   }
 
@@ -144,7 +144,7 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
       `Eviction rate: ${evLabel ?? "unknown"} | Risk: ${riskTier}\n` +
       `Recommended for: ${recFor}\n` +
       `Not recommended for: ${notRecFor}\n` +
-      `Updated: ${now} | Source: Spotticker / Azure Retail Prices API`
+      `Updated: ${now} | Source: Spoticker / Azure Retail Prices API`
     );
   }
 
@@ -174,7 +174,7 @@ export async function buildRecommendationResponse(
     messages: [
       {
         role: "user",
-        content: `Here is live Spotticker pricing data (as of ${timestamp}):\n\n${context}\n\n---\n\nWorkload request: ${prompt}`,
+        content: `Here is live Spoticker pricing data (as of ${timestamp}):\n\n${context}\n\n---\n\nWorkload request: ${prompt}`,
       },
     ],
   });
@@ -191,10 +191,10 @@ export async function buildRecommendationResponse(
   }
 
   return {
-    title: "Spotticker recommendation",
+    title: "Spoticker recommendation",
     summary: raw.slice(0, 300),
     reasoning: raw,
-    sources: ["Spotticker live pricing catalog"],
+    sources: ["Spoticker live pricing catalog"],
     options: [],
   };
 }

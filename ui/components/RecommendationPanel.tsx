@@ -60,14 +60,11 @@ export default function RecommendationPanel() {
     <section className="rounded-3xl border border-zinc-800 bg-zinc-950/80 p-6 shadow-xl shadow-black/20">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight text-white">Ask Spotticker</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-white">Ask Spoticker</h2>
           <p className="mt-1 text-sm text-zinc-400">
             Enter a workload description and get a risk-adjusted GPU spot recommendation.
           </p>
         </div>
-        <span className="rounded-full bg-zinc-900 px-3 py-1 text-xs uppercase tracking-[0.2em] text-zinc-400">
-          Hackathon demo
-        </span>
       </div>
 
       <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
@@ -89,7 +86,7 @@ export default function RecommendationPanel() {
             className="inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={loading}
           >
-            {loading ? "Thinking…" : "Ask Spotticker"}
+            {loading ? "Thinking…" : "Ask Spoticker"}
           </button>
         </div>
       </form>

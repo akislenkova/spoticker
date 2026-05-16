@@ -57,7 +57,7 @@ export default function ConnectPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Connect AWS Account</h1>
           <p className="text-zinc-500 text-sm mt-1">
-            Spotticker assumes a read-only role in your account — your access keys never leave AWS.
+            Spoticker assumes a read-only role in your account — your access keys never leave AWS.
           </p>
         </div>
 
