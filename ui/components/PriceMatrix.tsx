@@ -1,7 +1,26 @@
 "use client";
 
 import { MatrixData, CellData } from "@/lib/matrix";
-import { CellColor } from "@/lib/gpu-map";
+import { CellColor, GpuLabel } from "@/lib/gpu-map";
+
+/** Representative instance type per GPU for SPS lookup (must match aws-assume.ts). */
+const AWS_SPS_INSTANCE: Partial<Record<GpuLabel, string>> = {
+  T4: "g4dn.xlarge",
+  A10G: "g5.xlarge",
+  L4: "g6.xlarge",
+  A100: "p4d.24xlarge",
+  H100: "p5.48xlarge",
+};
+
+function spsScoreForCell(
+  spsScores: Record<string, number>,
+  region: string,
+  gpu: GpuLabel
+): number | undefined {
+  const instance = AWS_SPS_INSTANCE[gpu];
+  if (!instance) return undefined;
+  return spsScores[`${region}::${instance}`];
+}
 
 const CLOUD_LABEL: Record<string, string> = { aws: "AWS", azure: "Azure" };
 
@@ -19,12 +38,15 @@ const DOT: Record<CellColor, string> = {
   gray:   "bg-zinc-600",
 };
 
-/** Fixed cell chrome so AWS/Azure boxes stay uniform despite long SKU names. */
+/** Column width includes td padding — inner box is w-full so cells never bleed into neighbors. */
+const COL_W = "w-[112px] min-w-[112px] max-w-[112px]";
+const CELL_TD = `${COL_W} p-1 align-middle`;
 const CELL_BOX =
-  "w-[104px] h-[80px] flex flex-col items-center justify-center gap-0.5 rounded border px-2 py-1.5 text-center box-border";
-const CELL_TD = "px-2 py-1.5 w-[104px] min-w-[104px] max-w-[104px] align-middle";
+  "w-full h-[78px] box-border flex flex-col justify-between gap-0 rounded border px-1.5 py-1 text-center overflow-hidden";
+const CELL_BOX_EMPTY =
+  "w-full h-[78px] box-border flex flex-col items-center justify-center rounded border px-1.5 py-1 text-center";
 const COL_TH =
-  "px-2 py-1.5 w-[104px] min-w-[104px] text-center text-[11px] font-normal text-zinc-500 border-l border-zinc-700 whitespace-nowrap";
+  `${COL_W} p-1 text-center text-[11px] font-normal text-zinc-500 border-l border-zinc-700 whitespace-nowrap`;
 
 function spsColor(score: number): CellColor {
   if (score >= 8) return "green";
@@ -41,14 +63,14 @@ function Cell({
 }: {
   data: CellData;
   spsScore?: number;
-  gpu: string;
+  gpu: GpuLabel;
   cloud: string;
   region: string;
 }) {
   if (data.price === null) {
     return (
       <td className={CELL_TD}>
-        <div className={`${CELL_BOX} border-zinc-800 bg-zinc-900/30`}>
+        <div className={`${CELL_BOX_EMPTY} border-zinc-800 bg-zinc-900/30`}>
           <span className="text-zinc-600 text-xs">—</span>
         </div>
       </td>
@@ -56,17 +78,18 @@ function Cell({
   }
 
   const color = spsScore != null ? spsColor(spsScore) : data.color;
-  const label = spsScore != null
-    ? `SPS ${spsScore}/10`
-    : data.evictionLabel ?? null;
+  const spsLabel = spsScore != null ? `SPS ${spsScore}/10` : null;
+  const evictionLabel = data.evictionLabel ?? null;
 
   const cloudName = CLOUD_LABEL[cloud] ?? cloud;
   const ariaLabel = data.instanceLabel
     ? `Open ${gpu} spot in ${region} (${data.instanceLabel}) in ${cloudName} console`
     : `Open ${gpu} spot in ${region} in ${cloudName} console`;
 
-  const evictionText = label ?? "no eviction data";
-  const evictionMuted = label == null;
+  const primaryText = spsLabel ?? evictionLabel ?? "no data";
+  const primaryMuted = spsLabel == null && evictionLabel == null;
+  const showEvictionSub =
+    spsLabel != null && evictionLabel != null && cloud === "aws";
 
   const inner = (
     <div
@@ -74,21 +97,28 @@ function Cell({
         data.href ? "hover:border-zinc-500 cursor-pointer" : ""
       }`}
     >
-      <div className="h-5 flex items-center justify-center text-white font-mono text-sm font-medium leading-none">
+      <div className="shrink-0 text-white font-mono text-sm font-medium leading-tight tabular-nums">
         ${data.price.toFixed(4)}
       </div>
-      <div className="h-4 flex items-center justify-center gap-1 w-full min-w-0">
-        <span className={`inline-block w-1.5 h-1.5 shrink-0 rounded-full ${DOT[color]}`} />
-        <span
-          className={`text-[10px] leading-none truncate max-w-[88px] ${
-            evictionMuted ? "text-zinc-600" : "text-zinc-400"
-          }`}
-        >
-          {evictionText}
-        </span>
+      <div className="shrink-0 flex flex-col items-center justify-center gap-0 min-w-0 px-0.5">
+        <div className="flex items-center justify-center gap-1 w-full">
+          <span className={`inline-block w-1.5 h-1.5 shrink-0 rounded-full ${DOT[color]}`} />
+          <span
+            className={`text-[10px] leading-tight truncate ${
+              primaryMuted ? "text-zinc-600" : "text-zinc-400"
+            }`}
+          >
+            {primaryText}
+          </span>
+        </div>
+        {showEvictionSub && (
+          <span className="text-[9px] leading-tight text-zinc-500 truncate w-full">
+            evict {evictionLabel}
+          </span>
+        )}
       </div>
       <div
-        className="h-3.5 w-full min-w-0 text-zinc-500 text-[9px] leading-none truncate px-0.5"
+        className="shrink-0 min-h-[12px] w-full min-w-0 text-zinc-500 text-[9px] leading-tight truncate"
         title={data.instanceLabel}
       >
         {data.instanceLabel ? (
@@ -114,7 +144,7 @@ function Cell({
           rel="noopener noreferrer"
           title={data.instanceLabel}
           aria-label={ariaLabel}
-          className="block max-w-full no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 rounded"
+          className="block w-full no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 rounded"
         >
           {inner}
         </a>
@@ -142,7 +172,7 @@ export default function PriceMatrix({
 
   return (
     <div className="overflow-x-auto rounded-lg border border-zinc-700">
-      <table className="text-sm border-collapse w-max">
+      <table className="text-sm border-separate border-spacing-1 w-max">
         <thead>
           <tr className="bg-zinc-900 border-b border-zinc-700">
             <th className="px-4 py-2 text-left text-zinc-500 font-medium w-20" rowSpan={2}>
@@ -179,7 +209,11 @@ export default function PriceMatrix({
                 <Cell
                   key={col.key}
                   data={row.cells[col.key]}
-                  spsScore={col.cloud === "aws" ? spsScores[col.region] : undefined}
+                  spsScore={
+                    col.cloud === "aws"
+                      ? spsScoreForCell(spsScores, col.region, row.gpu)
+                      : undefined
+                  }
                   gpu={row.gpu}
                   cloud={col.cloud}
                   region={col.region}

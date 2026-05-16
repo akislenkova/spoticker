@@ -1,6 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "./supabase";
-import { awsGpu, azureGpu, awsRangeLabel, awsRangeColor, evictionColor } from "./gpu-map";
+import {
+  awsGpu,
+  azureGpu,
+  azureEvictionKey,
+  awsRangeLabel,
+  awsRangeColor,
+  evictionColor,
+} from "./gpu-map";
 
 export type RecommendationOption = {
   cloud: string;
@@ -93,13 +100,23 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
       supabase.rpc("latest_aws_spot_prices"),
       supabase.from("spot_bid_advisor").select("data").order("fetched_at", { ascending: false }).limit(1),
       supabase.rpc("latest_azure_spot_prices"),
-      supabase.rpc("latest_azure_eviction_rates"),
+      supabase
+        .from("azure_spot_eviction_rates")
+        .select("skuName, location, evictionRate, fetched_at")
+        .or(
+          "skuName.ilike.%t4%,skuName.ilike.%a10%,skuName.ilike.%l4%,skuName.ilike.%v100%,skuName.ilike.%a100%,skuName.ilike.%h100%"
+        )
+        .order("fetched_at", { ascending: false })
+        .limit(2000),
     ]);
 
   const advisorBlob = advisorResult.data?.[0]?.data?.spot_advisor ?? {};
   const azureEvMap = new Map<string, string>();
   for (const e of azureEvictionsResult.data ?? []) {
-    azureEvMap.set(`${e.skuName}::${e.location}`, e.evictionRate ?? "");
+    if (!e.skuName || !e.location) continue;
+    const key = azureEvictionKey(e.skuName, e.location);
+    if (azureEvMap.has(key)) continue;
+    azureEvMap.set(key, e.evictionRate ?? "");
   }
 
   const pages: string[] = [];
@@ -132,7 +149,7 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
     const sku = row.arm_sku_name ?? row.sku_name ?? "";
     const gpu = azureGpu(sku);
     if (!gpu) continue;
-    const evLabel = azureEvMap.get(`${sku}::${row.region}`) ?? null;
+    const evLabel = azureEvMap.get(azureEvictionKey(sku, row.region)) ?? null;
     const color = evLabel ? evictionColor(evLabel) : "gray";
     const riskTier = RISK_TIER[color];
     const [recFor, notRecFor] = WORKLOAD_NOTES[gpu] ?? ["general GPU workloads", "real-time inference"];

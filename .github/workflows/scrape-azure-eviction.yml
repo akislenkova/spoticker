@@ -1,6 +1,8 @@
 name: Scrape Azure eviction rates
 
 on:
+  schedule:
+    - cron: "30 */6 * * *"   # every 6 hours at :30 (full Azure scrape runs hourly)
   workflow_dispatch:
 
 jobs:

@@ -45,6 +45,11 @@ export function azureGpu(armSkuName: string): GpuLabel | null {
   return null;
 }
 
+/** Normalize SKU + region for joining prices (PascalCase) to eviction rows (lowercase). */
+export function azureEvictionKey(armSkuName: string, region: string): string {
+  return `${armSkuName.toLowerCase()}::${region.toLowerCase()}`;
+}
+
 export function gcpGpu(description: string): GpuLabel | null {
   for (const [re, gpu] of GCP_PATTERNS) {
     if (re.test(description)) return gpu;
@@ -57,8 +62,8 @@ export type CellColor = "green" | "yellow" | "red" | "gray";
 
 export function evictionColor(rate: string | null): CellColor {
   if (!rate) return "gray";
-  const low = rate.toLowerCase();
-  if (low.startsWith("0-5") || low === "<5%") return "green";
+  const low = rate.toLowerCase().replace(/\s/g, "");
+  if (low.startsWith("0-5") || low === "<5%" || low === "0-5%") return "green";
   if (low.startsWith("5-10") || low.startsWith("10-15")) return "yellow";
   return "red";
 }

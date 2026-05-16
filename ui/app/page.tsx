@@ -1,3 +1,4 @@
+import DataFreshnessBar from "@/components/DataFreshness";
 import MatrixWithSps from "@/components/MatrixWithSps";
 import RecommendationPanel from "@/components/RecommendationPanel";
 import { buildMatrix } from "@/lib/matrix";
@@ -20,22 +21,27 @@ export default async function Home() {
 
         <RecommendationPanel />
 
-        <div className="flex gap-4 text-xs text-zinc-400">
+        <DataFreshnessBar freshness={matrix.freshness} />
+
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-zinc-400">
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
-            Low (&lt;5%)
+            Low risk
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
-            Medium (5–15%)
+            Medium
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
-            High (&gt;15%)
+            High
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-zinc-600 inline-block" />
-            No eviction data
+            No data
+          </span>
+          <span className="text-zinc-600 w-full sm:w-auto">
+            Azure = eviction % · AWS (connected) = Spot Placement Score
           </span>
         </div>
 

@@ -48,6 +48,20 @@ def _upsert(table: str, rows: list[dict]) -> None:
     print(f"  upserted {len(rows)} rows → {table}")
 
 
+def _normalize_eviction(row: dict, fetched_at: str) -> dict | None:
+    sku = (row.get("skuName") or row.get("sku_name") or "").strip()
+    location = (row.get("location") or row.get("region") or "").strip()
+    rate = (row.get("evictionRate") or row.get("spotEvictionRate") or "").strip()
+    if not sku or not location or not rate:
+        return None
+    return {
+        "fetched_at": fetched_at,
+        "skuName": sku.lower(),
+        "location": location.lower(),
+        "evictionRate": rate,
+    }
+
+
 def _normalize_price(item: dict, fetched_at: str) -> dict:
     return {
         "fetched_at": fetched_at,
@@ -86,9 +100,11 @@ def run() -> None:
     _upsert("azure_spot_prices", prices)
 
     print("Fetching eviction rates from Resource Graph …")
-    eviction = fetch_eviction_rates(credential, subscription_ids=SUBSCRIPTION_IDS)
-    for row in eviction:
-        row["fetched_at"] = ts
+    raw_eviction = fetch_eviction_rates(credential, subscription_ids=SUBSCRIPTION_IDS)
+    eviction = [
+        n for r in raw_eviction if (n := _normalize_eviction(r, ts)) is not None
+    ]
+    print(f"  {len(eviction)} rows after normalize (from {len(raw_eviction)})")
     _upsert("azure_spot_eviction_rates", eviction)
 
     print("Done.")
@@ -99,9 +115,11 @@ def run_eviction_only() -> None:
     credential = DefaultAzureCredential()
 
     print("Fetching eviction rates from Resource Graph …")
-    eviction = fetch_eviction_rates(credential, subscription_ids=SUBSCRIPTION_IDS)
-    for row in eviction:
-        row["fetched_at"] = ts
+    raw_eviction = fetch_eviction_rates(credential, subscription_ids=SUBSCRIPTION_IDS)
+    eviction = [
+        n for r in raw_eviction if (n := _normalize_eviction(r, ts)) is not None
+    ]
+    print(f"  {len(eviction)} rows after normalize (from {len(raw_eviction)})")
     _upsert("azure_spot_eviction_rates", eviction)
     print("Done.")
 

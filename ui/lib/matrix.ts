@@ -5,6 +5,7 @@ import {
   CellColor,
   awsGpu,
   azureGpu,
+  azureEvictionKey,
   awsRangeLabel,
   awsRangeColor,
   evictionColor,
@@ -30,9 +31,17 @@ export type MatrixRow = {
   cells: Record<string, CellData>;
 };
 
+export type DataFreshness = {
+  awsPricesAt: string | null;
+  awsAdvisorAt: string | null;
+  azurePricesAt: string | null;
+  azureEvictionAt: string | null;
+};
+
 export type MatrixData = {
   columns: MatrixColumn[];
   rows: MatrixRow[];
+  freshness: DataFreshness;
 };
 
 type CellEntry = {
@@ -100,23 +109,31 @@ function telemetryLabel(evictionsPerHour: number): string {
 }
 
 async function fetchAzure(): Promise<Map<string, CellEntry>> {
-  const [
-    { data: prices, error: pricesErr },
-    { data: evictions, error: evErr },
-    { data: telemetry, error: telErr },
-  ] = await Promise.all([
-    supabase.rpc("latest_azure_spot_prices"),
-    supabase.rpc("latest_azure_eviction_rates"),
-    supabase.from("eviction_rates_30d").select("region, evictions_per_hour"),
-  ]);
+  const [{ data: prices, error: pricesErr }, { data: evictionRows, error: evErr }, { data: telemetry, error: telErr }] =
+    await Promise.all([
+      supabase.rpc("latest_azure_spot_prices"),
+      // RPC is capped at 1000 rows by PostgREST; query GPU SKUs directly instead
+      supabase
+        .from("azure_spot_eviction_rates")
+        .select("skuName, location, evictionRate, fetched_at")
+        .or(
+          "skuName.ilike.%t4%,skuName.ilike.%a10%,skuName.ilike.%l4%,skuName.ilike.%v100%,skuName.ilike.%a100%,skuName.ilike.%h100%"
+        )
+        .order("fetched_at", { ascending: false })
+        .limit(2000),
+      supabase.from("eviction_rates_30d").select("region, evictions_per_hour"),
+    ]);
 
   if (pricesErr) console.error("[azure] latest_azure_spot_prices:", pricesErr.message);
-  if (evErr) console.error("[azure] latest_azure_eviction_rates:", evErr.message);
+  if (evErr) console.error("[azure] azure_spot_eviction_rates:", evErr.message);
   if (telErr) console.error("[azure] eviction_rates_30d:", telErr.message);
 
   const rgMap = new Map<string, { label: string; color: CellColor }>();
-  for (const e of evictions ?? []) {
-    rgMap.set(`${e.skuName}::${e.location}`, {
+  for (const e of evictionRows ?? []) {
+    if (!e.skuName || !e.location) continue;
+    const key = azureEvictionKey(e.skuName, e.location);
+    if (rgMap.has(key)) continue; // keep newest (rows sorted by fetched_at desc)
+    rgMap.set(key, {
       label: e.evictionRate,
       color: evictionColor(e.evictionRate),
     });
@@ -124,8 +141,8 @@ async function fetchAzure(): Promise<Map<string, CellEntry>> {
 
   const telMap = new Map<string, { label: string; color: CellColor }>();
   for (const t of telemetry ?? []) {
-    if (t.evictions_per_hour != null) {
-      telMap.set(t.region, {
+    if (t.evictions_per_hour != null && t.region) {
+      telMap.set(t.region.toLowerCase(), {
         label: telemetryLabel(t.evictions_per_hour),
         color: telemetryColor(t.evictions_per_hour),
       });
@@ -139,9 +156,10 @@ async function fetchAzure(): Promise<Map<string, CellEntry>> {
     const gpu = azureGpu(sku);
     if (!gpu) continue;
 
-    const ev = rgMap.get(`${row.arm_sku_name}::${row.region}`)
-      ?? telMap.get(row.region)
-      ?? null;
+    const ev =
+      rgMap.get(azureEvictionKey(row.arm_sku_name, row.region)) ??
+      telMap.get(row.region.toLowerCase()) ??
+      null;
 
     const key = `${gpu}::azure:${row.region}`;
     const existing = map.get(key);
@@ -159,10 +177,55 @@ async function fetchAzure(): Promise<Map<string, CellEntry>> {
   return map;
 }
 
+// ── Scrape timestamps ─────────────────────────────────────────────────────────
+
+async function fetchFreshness(): Promise<DataFreshness> {
+  const [awsPrice, awsAdvisor, azurePrice, azureEviction] = await Promise.all([
+    supabase
+      .from("spot_price_history")
+      .select("timestamp")
+      .order("timestamp", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("spot_bid_advisor")
+      .select("fetched_at")
+      .order("fetched_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("azure_spot_prices")
+      .select("fetched_at")
+      .order("fetched_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("azure_spot_eviction_rates")
+      .select("fetched_at")
+      .order("fetched_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  return {
+    awsPricesAt: awsPrice.data?.timestamp ?? null,
+    awsAdvisorAt: awsAdvisor.data?.fetched_at ?? null,
+    azurePricesAt: azurePrice.data?.fetched_at ?? null,
+    azureEvictionAt: azureEviction.data?.fetched_at ?? null,
+  };
+}
+
 // ── Matrix assembly ───────────────────────────────────────────────────────────
 
-export async function buildMatrix(): Promise<MatrixData> {
-  const [awsMap, azureMap] = await Promise.all([fetchAws(), fetchAzure()]);
+const DEV_CACHE_MS = 120_000;
+let devMatrixCache: { data: MatrixData; at: number } | null = null;
+
+async function buildMatrixInner(): Promise<MatrixData> {
+  const [awsMap, azureMap, freshness] = await Promise.all([
+    fetchAws(),
+    fetchAzure(),
+    fetchFreshness(),
+  ]);
 
   const columnSet = new Set<string>();
   for (const key of [...awsMap.keys(), ...azureMap.keys()]) {
@@ -206,5 +269,18 @@ export async function buildMatrix(): Promise<MatrixData> {
     ),
   }));
 
-  return { columns, rows };
+  return { columns, rows, freshness };
+}
+
+export async function buildMatrix(): Promise<MatrixData> {
+  if (process.env.NODE_ENV === "development") {
+    const now = Date.now();
+    if (devMatrixCache && now - devMatrixCache.at < DEV_CACHE_MS) {
+      return devMatrixCache.data;
+    }
+    const data = await buildMatrixInner();
+    devMatrixCache = { data, at: now };
+    return data;
+  }
+  return buildMatrixInner();
 }

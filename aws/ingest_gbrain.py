@@ -177,7 +177,7 @@ def ingest_azure() -> None:
     print("Fetching Azure eviction rates…")
     evictions_raw = _rpc("latest_azure_eviction_rates")
     eviction_map: dict[str, str] = {
-        f"{e['skuName']}::{e['location']}": e.get("evictionRate", "unknown")
+        f"{e['skuName'].lower()}::{e['location'].lower()}": e.get("evictionRate", "unknown")
         for e in evictions_raw
     }
 
