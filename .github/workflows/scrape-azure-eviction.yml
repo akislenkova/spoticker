@@ -1,0 +1,26 @@
+name: Scrape Azure eviction rates
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests azure-identity
+
+      - name: Run eviction scraper
+        env:
+          SUPABASE_URL:            ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:            ${{ secrets.SUPABASE_SERVICE_KEY }}
+          AZURE_CLIENT_ID:         ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET:     ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID:         ${{ secrets.AZURE_TENANT_ID }}
+        run: python azure/scraper.py --eviction-only

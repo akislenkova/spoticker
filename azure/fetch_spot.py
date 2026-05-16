@@ -16,13 +16,14 @@ GRAPH_URL = (
 # All spot VM prices across every region in one filter
 SPOT_FILTER = "serviceName eq 'Virtual Machines' and contains(skuName, 'Spot')"
 
-# Eviction rate per SKU per region — last 28 days of buckets
+# Eviction rate per SKU per region — 28-day trailing buckets (tenant-level SpotResources)
+# https://learn.microsoft.com/en-us/azure/virtual-machines/spot-vms#pricing-and-eviction-history
 EVICTION_KQL = """
 SpotResources
-| where type =~ 'microsoft.compute/skuspotevictionrate'
+| where type =~ 'microsoft.compute/skuspotevictionrate/location'
 | project
     location,
-    skuName      = name,
+    skuName      = tostring(sku.name),
     evictionRate = tostring(properties.evictionRate)
 """
 
@@ -91,34 +92,60 @@ def fetch_eviction_rates(
         except Exception as e:
             print(f"  WARNING: could not detect subscriptions: {e}")
 
+    # SpotResources eviction rates are tenant-wide catalog data — omit subscriptions.
     payload: dict = {
         "query": EVICTION_KQL,
         "options": {"$top": 1000},
     }
-    if subscription_ids:
-        payload["subscriptions"] = subscription_ids
 
     records: list[dict] = []
     skip_token: str | None = None
+    page = 0
 
     while True:
+        page += 1
         if skip_token:
             payload["options"]["$skipToken"] = skip_token
 
-        resp = requests.post(GRAPH_URL, json=payload, headers=headers, timeout=30)
+        resp = requests.post(GRAPH_URL, json=payload, headers=headers, timeout=60)
+        if not resp.ok:
+            print(f"  Resource Graph HTTP {resp.status_code}: {resp.text[:500]}")
         resp.raise_for_status()
         body = resp.json()
 
+        total = body.get("totalRecords")
+        if page == 1:
+            print(f"  Resource Graph totalRecords={total}")
+
         data = body.get("data", [])
+        page_rows: list[dict] = []
         if isinstance(data, list):
-            records.extend(data)
-        else:
+            page_rows = data
+        elif data:
             cols = [c["name"] for c in data.get("columns", [])]
             for row in data.get("rows", []):
-                records.append(dict(zip(cols, row)))
+                page_rows.append(dict(zip(cols, row)))
+
+        for row in page_rows:
+            # Normalize alternate column names from samples/docs
+            if "evictionRate" not in row and "spotEvictionRate" in row:
+                row["evictionRate"] = row["spotEvictionRate"]
+            if "skuName" not in row and "sku" in row:
+                sku = row["sku"]
+                if isinstance(sku, dict):
+                    row["skuName"] = sku.get("name", "")
+
+        records.extend(page_rows)
+        print(f"  page {page}: {len(page_rows)} rows (running total {len(records)})")
 
         skip_token = body.get("$skipToken")
         if not skip_token:
             break
+
+    if not records and subscription_ids:
+        print(
+            f"  NOTE: 0 rows at tenant scope "
+            f"(subscription hint was set but unused for SpotResources)"
+        )
 
     return records

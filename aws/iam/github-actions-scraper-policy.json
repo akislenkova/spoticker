@@ -1,0 +1,16 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SpottickerScraperReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeSpotPriceHistory",
+        "ec2:DescribeRegions",
+        "ec2:DescribeAvailabilityZones",
+        "ec2:DescribeInstanceTypes"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

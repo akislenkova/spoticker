@@ -55,6 +55,11 @@ def run() -> None:
 
     print("Fetching describe_spot_price_history …")
     history = fetch_spot_price_history(hours=24)
+    if not history:
+        print(
+            "  WARNING: 0 spot price rows — IAM user likely lacks ec2:DescribeSpotPriceHistory.\n"
+            "  Attach aws/iam/github-actions-scraper-policy.json to the GitHub Actions IAM user."
+        )
     _upsert("spot_price_history", history)
 
     print("Fetching spot-bid-advisor blob …")
