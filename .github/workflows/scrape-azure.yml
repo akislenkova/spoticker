@@ -1,0 +1,30 @@
+name: Scrape Azure spot prices
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # top of every hour
+  workflow_dispatch:       # manual trigger
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install requests azure-identity azure-mgmt-resource
+
+      - name: Run Azure scraper
+        env:
+          SUPABASE_URL:            ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:            ${{ secrets.SUPABASE_SERVICE_KEY }}
+          AZURE_CLIENT_ID:         ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET:     ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID:         ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_IDS:  ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: python azure/scraper.py
