@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Creates a read-only IAM role that Spotticker can assume to fetch
+  Spot Placement Scores and pricing data on your behalf.
+
+Parameters:
+  SpottickerAccountId:
+    Type: String
+    Description: Spotticker's AWS account ID (provided by Spotticker)
+  ExternalId:
+    Type: String
+    Description: Your unique External ID (provided by Spotticker — do not change)
+
+Resources:
+  SpottickerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: SpottickerReadOnly
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${SpottickerAccountId}:root"
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref ExternalId
+      Policies:
+        - PolicyName: SpottickerReadOnly
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:GetSpotPlacementScores
+                  - ec2:DescribeSpotPriceHistory
+                  - ec2:DescribeInstanceTypes
+                  - ec2:DescribeAvailabilityZones
+                  - ec2:DescribeRegions
+                Resource: "*"
+
+Outputs:
+  RoleArn:
+    Description: Paste this ARN back into Spotticker
+    Value: !GetAtt SpottickerRole.Arn
