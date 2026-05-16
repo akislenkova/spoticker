@@ -22,8 +22,9 @@ const DOT: Record<CellColor, string> = {
 /** Fixed cell chrome so AWS/Azure boxes stay uniform despite long SKU names. */
 const CELL_BOX =
   "w-[104px] h-[80px] flex flex-col items-center justify-center gap-0.5 rounded border px-2 py-1.5 text-center box-border";
-const CELL_TD = "px-2 py-1.5 w-[104px] align-middle";
-const COL_TH = "px-2 py-1.5 w-[104px] text-center text-[11px] font-normal text-zinc-500 border-l border-zinc-700 whitespace-nowrap";
+const CELL_TD = "px-2 py-1.5 w-[104px] min-w-[104px] max-w-[104px] align-middle";
+const COL_TH =
+  "px-2 py-1.5 w-[104px] min-w-[104px] text-center text-[11px] font-normal text-zinc-500 border-l border-zinc-700 whitespace-nowrap";
 
 function spsColor(score: number): CellColor {
   if (score >= 8) return "green";
@@ -113,7 +114,7 @@ function Cell({
           rel="noopener noreferrer"
           title={data.instanceLabel}
           aria-label={ariaLabel}
-          className="block w-[104px] no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 rounded"
+          className="block max-w-full no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 rounded"
         >
           {inner}
         </a>
@@ -141,7 +142,7 @@ export default function PriceMatrix({
 
   return (
     <div className="overflow-x-auto rounded-lg border border-zinc-700">
-      <table className="text-sm border-collapse w-full table-fixed">
+      <table className="text-sm border-collapse w-max">
         <thead>
           <tr className="bg-zinc-900 border-b border-zinc-700">
             <th className="px-4 py-2 text-left text-zinc-500 font-medium w-20" rowSpan={2}>
