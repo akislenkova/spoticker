@@ -1,17 +1,14 @@
-import { awsGpu, azureGpu } from "./gpu-map";
+import Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "./supabase";
-
-export type WorkloadRequest = {
-  prompt: string;
-};
+import { awsGpu, azureGpu, awsRangeLabel, awsRangeColor, evictionColor } from "./gpu-map";
 
 export type RecommendationOption = {
-  cloud: "aws" | "azure";
+  cloud: string;
   region: string;
   gpu: string;
   price: number;
   evictionLabel: string | null;
-  riskTier: "LOW" | "MEDIUM" | "HIGH" | "UNKNOWN";
+  riskTier: string;
   source: string;
   lastUpdated: string;
   details: string;
@@ -25,201 +22,179 @@ export type RecommendationResponse = {
   options: RecommendationOption[];
 };
 
-const GPU_KEYWORDS: Record<string, string> = {
-  a100: "A100",
-  h100: "H100",
-  h200: "H200",
-  l4: "L4",
-  l40s: "L40S",
-  t4: "T4",
-  v100: "V100",
-  a10: "A10",
+const WORKLOAD_NOTES: Record<string, [string, string]> = {
+  T4:         ["batch jobs, smaller fine-tunes, cost-sensitive inference",
+               "real-time inference without checkpointing, large model training"],
+  A10G:       ["batch inference, mid-size fine-tunes, A10G-optimised workloads",
+               "stateful training without checkpointing"],
+  L4:         ["transformer inference, batch jobs, cost-sensitive fine-tuning",
+               "real-time latency-sensitive serving"],
+  V100:       ["batch training, legacy model fine-tunes",
+               "new workloads (A100 is cheaper and faster), real-time inference"],
+  A100:       ["large model training, fine-tuning, high-throughput batch inference",
+               "real-time inference, stateful training without checkpointing"],
+  H100:       ["frontier model training, maximum throughput batch inference",
+               "cost-sensitive workloads, real-time serving where A100 suffices"],
 };
 
-function parseGpu(prompt: string): string | null {
-  const lower = prompt.toLowerCase();
-  for (const [keyword, label] of Object.entries(GPU_KEYWORDS)) {
-    if (lower.includes(keyword)) return label;
+const GPU_COUNTS: Record<string, number> = {
+  "g4dn.xlarge": 1, "g4dn.2xlarge": 1, "g4dn.4xlarge": 1,
+  "g4dn.8xlarge": 1, "g4dn.12xlarge": 4, "g4dn.16xlarge": 1, "g4dn.metal": 8,
+  "g5.xlarge": 1, "g5.2xlarge": 1, "g5.4xlarge": 1, "g5.8xlarge": 1,
+  "g5.12xlarge": 4, "g5.16xlarge": 1, "g5.24xlarge": 4, "g5.48xlarge": 8,
+  "p3.2xlarge": 1, "p3.8xlarge": 4, "p3.16xlarge": 8, "p3dn.24xlarge": 8,
+  "p4d.24xlarge": 8, "p4de.24xlarge": 8, "p5.48xlarge": 8,
+};
+
+const RISK_TIER: Record<string, string> = {
+  green: "LOW", yellow: "MEDIUM", red: "HIGH", gray: "UNKNOWN",
+};
+
+const SYSTEM_PROMPT = `You are Spotticker's recommendation engine. You have live GPU spot pricing data from the Spotticker catalog.
+
+Given a workload description and a set of live pricing pages, return a specific, opinionated recommendation like a senior infra engineer would give.
+
+Rules:
+- NEVER recommend spot for real-time inference, stateful services, or latency-sensitive workloads — say so explicitly
+- For batch training / fine-tuning that tolerates eviction: optimise cost × risk together, not just cheapest price
+- Be opinionated: pick one winner, explain why, acknowledge the tradeoff
+- Cite actual prices and eviction rates from the data — do not hallucinate numbers
+- If the workload is risky on spot, warn and suggest on-demand or reserved as fallback
+- If no exact GPU match exists in the data, recommend the closest available option and note the gap
+
+Return ONLY a valid JSON object — no markdown wrapper, no text outside the JSON:
+{
+  "title": "short recommendation title (1 line)",
+  "summary": "bottom line in 1-2 sentences",
+  "reasoning": "2-3 sentence explanation as a senior infra engineer",
+  "sources": ["source-description-1", "source-description-2"],
+  "options": [
+    {
+      "cloud": "aws",
+      "region": "us-east-1",
+      "gpu": "A100",
+      "price": 14.20,
+      "evictionLabel": "<5%",
+      "riskTier": "LOW",
+      "source": "AWS p4d.24xlarge us-east-1",
+      "lastUpdated": "2026-05-16T19:13:58Z",
+      "details": "one-line detail"
+    }
+  ]
+}
+
+options should be ranked best-first. Include 1–3 options. options may be empty if no data is available.`;
+
+async function buildPricingContext(): Promise<{ context: string; timestamp: string }> {
+  const now = new Date().toISOString();
+
+  const [awsPricesResult, advisorResult, azurePricesResult, azureEvictionsResult] =
+    await Promise.all([
+      supabase.rpc("latest_aws_spot_prices"),
+      supabase.from("spot_bid_advisor").select("data").order("fetched_at", { ascending: false }).limit(1),
+      supabase.rpc("latest_azure_spot_prices"),
+      supabase.rpc("latest_azure_eviction_rates"),
+    ]);
+
+  const advisorBlob = advisorResult.data?.[0]?.data?.spot_advisor ?? {};
+  const azureEvMap = new Map<string, string>();
+  for (const e of azureEvictionsResult.data ?? []) {
+    azureEvMap.set(`${e.skuName}::${e.location}`, e.evictionRate ?? "");
   }
-  return null;
-}
 
-function parseTolerance(prompt: string): "tolerant" | "sensitive" | "unknown" {
-  const lower = prompt.toLowerCase();
-  if (lower.includes("tolerat") || lower.includes("interruption") || lower.includes("checkpoint")) {
-    return "tolerant";
+  const pages: string[] = [];
+
+  // AWS pages
+  for (const row of awsPricesResult.data ?? []) {
+    const gpu = awsGpu(row.instance_type);
+    if (!gpu) continue;
+    const gpuCount = GPU_COUNTS[row.instance_type] ?? 1;
+    const regionAdvisor = advisorBlob[row.region]?.["Linux"] ?? {};
+    const entry = regionAdvisor[row.instance_type];
+    const evictionLabel = entry != null ? awsRangeLabel(entry.r) : null;
+    const color = entry != null ? awsRangeColor(entry.r) : "gray";
+    const riskTier = RISK_TIER[color];
+    const [recFor, notRecFor] = WORKLOAD_NOTES[gpu] ?? ["general GPU workloads", "real-time inference"];
+
+    pages.push(
+      `# ${gpu} spot ${row.region} (AWS ${row.instance_type})\n` +
+      `Cloud: AWS | Instance: ${row.instance_type} | GPU: ${gpu} | GPUs/instance: ${gpuCount}\n` +
+      `Spot price: $${Number(row.price_usd).toFixed(4)}/hr per GPU ($${(Number(row.price_usd) * gpuCount).toFixed(2)}/hr total)\n` +
+      `Eviction rate (7-day): ${evictionLabel ?? "unknown"} | Risk: ${riskTier}\n` +
+      `Recommended for: ${recFor}\n` +
+      `Not recommended for: ${notRecFor}\n` +
+      `Updated: ${now} | Source: Spotticker / AWS spot-bid-advisor`
+    );
   }
-  if (lower.includes("can't tolerate") || lower.includes("cannot tolerate") || lower.includes("no eviction") || lower.includes("stateful") || lower.includes("real-time") || lower.includes("latency")) {
-    return "sensitive";
+
+  // Azure pages
+  for (const row of azurePricesResult.data ?? []) {
+    const sku = row.arm_sku_name ?? row.sku_name ?? "";
+    const gpu = azureGpu(sku);
+    if (!gpu) continue;
+    const evLabel = azureEvMap.get(`${sku}::${row.region}`) ?? null;
+    const color = evLabel ? evictionColor(evLabel) : "gray";
+    const riskTier = RISK_TIER[color];
+    const [recFor, notRecFor] = WORKLOAD_NOTES[gpu] ?? ["general GPU workloads", "real-time inference"];
+
+    pages.push(
+      `# ${gpu} spot ${row.region} (Azure ${sku})\n` +
+      `Cloud: Azure | SKU: ${sku} | GPU: ${gpu}\n` +
+      `Spot price: $${Number(row.retail_price).toFixed(4)}/hr per GPU\n` +
+      `Eviction rate: ${evLabel ?? "unknown"} | Risk: ${riskTier}\n` +
+      `Recommended for: ${recFor}\n` +
+      `Not recommended for: ${notRecFor}\n` +
+      `Updated: ${now} | Source: Spotticker / Azure Retail Prices API`
+    );
   }
-  return "unknown";
-}
 
-function parseWorkloadType(prompt: string): "batch" | "inference" | "training" | "unknown" {
-  const lower = prompt.toLowerCase();
-  if (lower.includes("batch")) return "batch";
-  if (lower.includes("fine-tun") || lower.includes("training") || lower.includes("train")) return "training";
-  if (lower.includes("infer") || lower.includes("real-time") || lower.includes("latency")) return "inference";
-  return "unknown";
-}
-
-function riskTierFromColor(color: string): "LOW" | "MEDIUM" | "HIGH" | "UNKNOWN" {
-  if (color === "green") return "LOW";
-  if (color === "yellow") return "MEDIUM";
-  if (color === "red") return "HIGH";
-  return "UNKNOWN";
-}
-
-function normalizeScore(value: number, min: number, max: number) {
-  if (value <= min) return 0;
-  if (value >= max) return 1;
-  return (value - min) / (max - min);
+  return { context: pages.join("\n\n---\n\n"), timestamp: now };
 }
 
 export async function buildRecommendationResponse(
   prompt: string
 ): Promise<RecommendationResponse> {
-  const workloadGpu = parseGpu(prompt);
-  const tolerance = parseTolerance(prompt);
-  const workloadType = parseWorkloadType(prompt);
+  const { context, timestamp } = await buildPricingContext();
 
-  const [awsResult, azurePricesResult, azureEvictionsResult, telemetryResult] = await Promise.all([
-    supabase.rpc("latest_aws_spot_prices"),
-    supabase.rpc("latest_azure_spot_prices"),
-    supabase.rpc("latest_azure_eviction_rates"),
-    supabase.from("eviction_rates_30d").select("region, evictions_per_hour"),
-  ]);
-
-  const awsPrices = awsResult.data ?? [];
-  const azurePrices = azurePricesResult.data ?? [];
-  const azureEvictions = azureEvictionsResult.data ?? [];
-  const telemetry = telemetryResult.data ?? [];
-
-  const awsAdvisorRows = await supabase
-    .from("spot_bid_advisor")
-    .select("data")
-    .order("fetched_at", { ascending: false })
-    .limit(1);
-
-  const advisorBlob = awsAdvisorRows.data?.[0]?.data?.spot_advisor ?? {};
-  const awsRegionAdvisors = new Map<string, Record<string, { r: number }>>();
-  for (const [region, values] of Object.entries(advisorBlob)) {
-    awsRegionAdvisors.set(region, values as Record<string, { r: number }>);
-  }
-
-  const azureEvictionMap = new Map<string, { label: string; color: string }>();
-  for (const row of azureEvictions) {
-    azureEvictionMap.set(`${row.skuName}::${row.location}`, {
-      label: row.evictionRate,
-      color: row.evictionRate ? (row.evictionRate.includes("%") ? "yellow" : "gray") : "gray",
-    });
-  }
-  const azureTelemetry = new Map<string, { label: string; color: string }>();
-  for (const row of telemetry) {
-    if (row.evictions_per_hour != null) {
-      const daily = row.evictions_per_hour * 24 * 100;
-      azureTelemetry.set(row.region, {
-        label: `~${daily.toFixed(1)}%/day`,
-        color: daily < 5 ? "green" : daily < 15 ? "yellow" : "red",
-      });
-    }
-  }
-
-  const options: RecommendationOption[] = [];
-
-  for (const row of awsPrices) {
-    const gpu = awsGpu(row.instance_type);
-    if (!gpu) continue;
-    if (workloadGpu && gpu !== workloadGpu) continue;
-    const regionAdvisor = awsRegionAdvisors.get(row.region) ?? {};
-    const entry = regionAdvisor[row.instance_type];
-    const evictionLabel = entry != null ? `~${Math.round(entry.r * 100)}%` : null;
-    const color = entry != null ? (entry.r < 0.05 ? "green" : entry.r < 0.15 ? "yellow" : "red") : "gray";
-    options.push({
-      cloud: "aws",
-      region: row.region,
-      gpu,
-      price: row.price_usd,
-      evictionLabel,
-      riskTier: riskTierFromColor(color),
-      source: `AWS spot ${row.instance_type}`,
-      lastUpdated: row.fetched_at ?? row.updated_at ?? "unknown",
-      details: `AWS ${row.instance_type} in ${row.region} at $${row.price_usd.toFixed(4)}/GPU with eviction ${evictionLabel ?? "unknown"}`,
-    });
-  }
-
-  for (const row of azurePrices) {
-    const gpu = azureGpu(row.arm_sku_name ?? row.sku_name ?? "");
-    if (!gpu) continue;
-    if (workloadGpu && gpu !== workloadGpu) continue;
-    const ev = azureEvictionMap.get(`${row.arm_sku_name}::${row.region}`) ?? azureTelemetry.get(row.region) ?? { label: null, color: "gray" };
-    options.push({
-      cloud: "azure",
-      region: row.region,
-      gpu,
-      price: row.retail_price,
-      evictionLabel: ev.label,
-      riskTier: riskTierFromColor(ev.color),
-      source: `Azure spot ${row.arm_sku_name ?? row.sku_name}`,
-      lastUpdated: row.fetched_at ?? row.updated_at ?? "unknown",
-      details: `Azure ${row.arm_sku_name ?? row.sku_name} in ${row.region} at $${row.retail_price.toFixed(4)}/GPU with eviction ${ev.label ?? "unknown"}`,
-    });
-  }
-
-  if (options.length === 0) {
+  if (!context) {
     return {
-      title: "No matching GPU options found",
-      summary: "Spotticker could not find a matched GPU type for that request.",
-      reasoning:
-        workloadGpu
-          ? `No live spot rows for ${workloadGpu} were available in AWS or Azure. Try a different GPU model or check the dataset.`
-          : "No live spot rows are currently available for the requested workload.",
-      sources: ["latest_aws_spot_prices", "latest_azure_spot_prices"],
+      title: "No pricing data available",
+      summary: "No spot pricing data could be retrieved. Check Supabase connectivity.",
+      reasoning: "Run the AWS and Azure scrapers to populate the database.",
+      sources: [],
       options: [],
     };
   }
 
-  const prices = options.map((option) => option.price);
-  const minPrice = Math.min(...prices);
-  const maxPrice = Math.max(...prices);
+  const client = new Anthropic();
+  const message = await client.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 2048,
+    system: SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: `Here is live Spotticker pricing data (as of ${timestamp}):\n\n${context}\n\n---\n\nWorkload request: ${prompt}`,
+      },
+    ],
+  });
 
-  const ranked = options
-    .map((option) => {
-      const priceScore = normalizeScore(option.price, minPrice, maxPrice);
-      const riskScore = option.riskTier === "LOW" ? 0 : option.riskTier === "MEDIUM" ? 0.5 : option.riskTier === "HIGH" ? 1 : 0.5;
-      const weight = tolerance === "sensitive" ? 0.6 : tolerance === "tolerant" ? 0.4 : 0.5;
-      const score = weight * riskScore + (1 - weight) * priceScore;
-      return { option, score };
-    })
-    .sort((a, b) => a.score - b.score)
-    .slice(0, 3)
-    .map((item) => item.option);
+  const raw = message.content[0].type === "text" ? message.content[0].text : "";
 
-  const primary = ranked[0];
-  const recommendationTone = tolerance === "sensitive" ? "prioritize low eviction risk" : "balance price with risk";
-  const summary = primary
-    ? `Recommend ${primary.cloud.toUpperCase()} ${primary.region} for ${primary.gpu} with ${primary.riskTier.toLowerCase()} spot risk at $${primary.price.toFixed(4)}/GPU.`
-    : "No strong recommendation available.";
-  const reasoningLines = [
-    `Parsed workload: ${workloadType === "unknown" ? "general GPU workload" : workloadType}.`,
-    `Detected GPU: ${workloadGpu ?? "any supported GPU"}.`,
-    `Tolerance: ${tolerance === "tolerant" ? "spot-friendly" : tolerance === "sensitive" ? "eviction-sensitive" : "unknown"}.`,
-    `Selected by ${recommendationTone}.`,
-    `Top choice: ${primary.cloud.toUpperCase()} ${primary.region} (${primary.gpu}) at $${primary.price.toFixed(4)}/GPU with ${primary.evictionLabel ?? "no eviction data"}.`,
-    `Alternative options include ${ranked.slice(1).map((option) => `${option.cloud.toUpperCase()} ${option.region} (${option.gpu})`).join(", ") || "none"}.`,
-  ];
-
-  if (workloadType === "inference" || tolerance === "sensitive") {
-    reasoningLines.push(
-      "Spot is riskier for latency-sensitive or stateful workloads. If the workload cannot tolerate interruption, consider on-demand or a reserved fallback."
-    );
+  // Extract JSON: find outermost { ... } block
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start !== -1 && end > start) {
+    try {
+      return JSON.parse(raw.slice(start, end + 1)) as RecommendationResponse;
+    } catch { /* fall through */ }
   }
 
   return {
-    title: `Spotticker recommendation for ${workloadGpu ?? "GPU workload"}`,
-    summary,
-    reasoning: reasoningLines.join(" "),
-    sources: ["latest_aws_spot_prices", "latest_azure_spot_prices", "latest_azure_eviction_rates"],
-    options: ranked,
+    title: "Spotticker recommendation",
+    summary: raw.slice(0, 300),
+    reasoning: raw,
+    sources: ["Spotticker live pricing catalog"],
+    options: [],
   };
 }
