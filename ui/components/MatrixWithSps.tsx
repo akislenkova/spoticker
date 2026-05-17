@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import MatrixLegend from "./MatrixLegend";
 import PriceMatrix from "./PriceMatrix";
 import { MatrixData } from "@/lib/matrix";
 
@@ -69,20 +70,29 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
       .finally(() => setSpsLoading(false));
   }, [awsStatus]);
 
+  const awsUsesSps = Object.keys(spsScores).length > 0;
+  const awsMetric: "sps" | "eviction" | "loading" = awsStatus.loading
+    ? "loading"
+    : awsUsesSps
+      ? "sps"
+      : "eviction";
+
   return (
     <div className="space-y-3">
+      <MatrixLegend awsMetric={awsMetric} />
+
       {!awsStatus.loading && awsStatus.connected && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
           {spsLoading ? (
             <span>Loading Spot Placement Scores…</span>
-          ) : Object.keys(spsScores).length > 0 ? (
-            <span className="text-emerald-500">
-              ● SPS loaded ({Object.keys(spsScores).length} regions)
-              {awsStatus.accountId ? ` · account ${awsStatus.accountId}` : ""}
+          ) : awsUsesSps ? (
+            <span className="text-sky-400/90">
+              AWS connected · SPS for {Object.keys(spsScores).length} region×instance pairs
+              {awsStatus.accountId ? ` · ${awsStatus.accountId}` : ""}
             </span>
           ) : (
             <span className="text-red-400" title={spsError ?? undefined}>
-              {spsError ?? "SPS fetch failed or no data"}
+              {spsError ?? "SPS fetch failed — showing advisor eviction rates instead"}
             </span>
           )}
           <button
@@ -100,28 +110,10 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
           <Link href="/connect" className="underline hover:text-zinc-400">
             Connect your AWS account
           </Link>{" "}
-          to see Spot Placement Scores
+          for Spot Placement Scores (otherwise AWS cells use advisor eviction %).
         </div>
       )}
-      {Object.keys(spsScores).length > 0 && (
-        <div className="flex flex-wrap gap-4 text-xs text-zinc-400">
-          <span className="text-zinc-500 w-full sm:w-auto">AWS cells — Spot Placement Score:</span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            High (8–10)
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
-            Medium (5–7)
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-400" />
-            Low (1–4)
-          </span>
-          <span className="text-zinc-600">Azure = eviction % (unchanged)</span>
-        </div>
-      )}
-      <PriceMatrix data={data} spsScores={spsScores} />
+      <PriceMatrix data={data} spsScores={spsScores} awsUsesSps={awsUsesSps} />
     </div>
   );
 }

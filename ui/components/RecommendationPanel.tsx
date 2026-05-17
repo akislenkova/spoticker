@@ -1,6 +1,10 @@
 "use client";
 
+import SpotContextGuide from "@/components/SpotContextGuide";
 import { useState, type FormEvent } from "react";
+
+const EXAMPLE_PROMPT =
+  "I need 4x A100s for 8 hours of fine-tuning, batch job, can tolerate eviction";
 
 type RecommendationOption = {
   cloud: string;
@@ -23,15 +27,16 @@ type Recommendation = {
 };
 
 export default function RecommendationPanel() {
-  const [prompt, setPrompt] = useState(
-    "I need 4x A100s for 8 hours of fine-tuning, batch job, can tolerate eviction"
-  );
+  const [prompt, setPrompt] = useState("");
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const trimmed = prompt.trim();
+    if (!trimmed) return;
+
     setError(null);
     setRecommendation(null);
     setLoading(true);
@@ -40,7 +45,7 @@ export default function RecommendationPanel() {
       const response = await fetch("/api/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt: trimmed }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -62,29 +67,39 @@ export default function RecommendationPanel() {
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-white">Ask Spoticker</h2>
           <p className="mt-1 text-sm text-zinc-400">
-            Enter a workload description and get a risk-adjusted GPU spot recommendation.
+            Describe your workload; get a risk-adjusted GPU spot pick from live pricing and
+            eviction data.
           </p>
         </div>
       </div>
 
-      <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
+      <div className="mt-4">
+        <SpotContextGuide />
+      </div>
+
+      <form className="mt-5 space-y-3" onSubmit={handleSubmit}>
         <label className="block text-[13px] font-medium text-zinc-300">
           Workload prompt
           <textarea
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
-            className="mt-2 h-28 w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white outline-none transition hover:border-zinc-700 focus:border-emerald-500"
+            placeholder={EXAMPLE_PROMPT}
+            className="mt-2 h-28 w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none transition hover:border-zinc-700 focus:border-emerald-500"
           />
         </label>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-zinc-500">
-            Example: <span className="text-white">4x A100s, 8hr fine-tune, batch job, can tolerate eviction</span>
-          </p>
+          <button
+            type="button"
+            onClick={() => setPrompt(EXAMPLE_PROMPT)}
+            className="text-left text-xs text-zinc-600 hover:text-zinc-400 transition"
+          >
+            Use example prompt
+          </button>
           <button
             type="submit"
             className="inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={loading}
+            disabled={loading || !prompt.trim()}
           >
             {loading ? "Thinking…" : "Ask Spoticker"}
           </button>
@@ -111,13 +126,20 @@ export default function RecommendationPanel() {
 
           <div className="grid gap-3 md:grid-cols-3">
             {recommendation.options.map((option) => (
-              <div key={`${option.cloud}-${option.region}-${option.gpu}`} className="rounded-3xl border border-zinc-800 bg-zinc-950 p-4">
-                <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">{option.cloud.toUpperCase()}</div>
+              <div
+                key={`${option.cloud}-${option.region}-${option.gpu}`}
+                className="rounded-3xl border border-zinc-800 bg-zinc-950 p-4"
+              >
+                <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+                  {option.cloud.toUpperCase()}
+                </div>
                 <div className="mt-2 text-sm font-semibold text-white">{option.gpu}</div>
                 <div className="text-sm text-zinc-400">{option.region}</div>
                 <div className="mt-3 text-sm text-zinc-100">${option.price.toFixed(4)}/GPU</div>
                 <div className="mt-1 text-xs text-zinc-400">Risk: {option.riskTier}</div>
-                <div className="mt-2 text-[13px] text-zinc-500">{option.evictionLabel ?? "No eviction data"}</div>
+                <div className="mt-2 text-[13px] text-zinc-500">
+                  {option.evictionLabel ?? "No eviction data"}
+                </div>
               </div>
             ))}
           </div>

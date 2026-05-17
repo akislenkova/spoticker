@@ -77,8 +77,8 @@ function Cell({
     );
   }
 
-  const color = spsScore != null ? spsColor(spsScore) : data.color;
-  const spsLabel = spsScore != null ? `SPS ${spsScore}/10` : null;
+  const usesSps = cloud === "aws" && spsScore != null;
+  const color = usesSps ? spsColor(spsScore) : data.color;
   const evictionLabel = data.evictionLabel ?? null;
 
   const cloudName = CLOUD_LABEL[cloud] ?? cloud;
@@ -86,10 +86,21 @@ function Cell({
     ? `Open ${gpu} spot in ${region} (${data.instanceLabel}) in ${cloudName} console`
     : `Open ${gpu} spot in ${region} in ${cloudName} console`;
 
-  const primaryText = spsLabel ?? evictionLabel ?? "no data";
-  const primaryMuted = spsLabel == null && evictionLabel == null;
-  const showEvictionSub =
-    spsLabel != null && evictionLabel != null && cloud === "aws";
+  const metricBadge = usesSps
+    ? { label: "SPS", className: "bg-sky-950/80 text-sky-400" }
+    : cloud === "azure"
+      ? { label: "EVICT", className: "bg-violet-950/80 text-violet-400" }
+      : evictionLabel
+        ? { label: "EVICT", className: "bg-zinc-800 text-zinc-500" }
+        : null;
+
+  const primaryText = usesSps
+    ? `${spsScore}/10`
+    : evictionLabel
+      ? evictionLabel
+      : "no data";
+  const primaryMuted = !usesSps && evictionLabel == null;
+  const showEvictionSub = usesSps && evictionLabel != null;
 
   const inner = (
     <div
@@ -100,9 +111,16 @@ function Cell({
       <div className="shrink-0 text-white font-mono text-sm font-medium leading-tight tabular-nums">
         ${data.price.toFixed(4)}
       </div>
-      <div className="shrink-0 flex flex-col items-center justify-center gap-0 min-w-0 px-0.5">
+      <div className="shrink-0 flex flex-col items-center justify-center gap-0.5 min-w-0 px-0.5">
         <div className="flex items-center justify-center gap-1 w-full">
           <span className={`inline-block w-1.5 h-1.5 shrink-0 rounded-full ${DOT[color]}`} />
+          {metricBadge ? (
+            <span
+              className={`shrink-0 rounded px-0.5 text-[8px] font-semibold uppercase tracking-wide ${metricBadge.className}`}
+            >
+              {metricBadge.label}
+            </span>
+          ) : null}
           <span
             className={`text-[10px] leading-tight truncate ${
               primaryMuted ? "text-zinc-600" : "text-zinc-400"
@@ -113,7 +131,7 @@ function Cell({
         </div>
         {showEvictionSub && (
           <span className="text-[9px] leading-tight text-zinc-500 truncate w-full">
-            evict {evictionLabel}
+            advisor evict {evictionLabel}
           </span>
         )}
       </div>
@@ -155,12 +173,19 @@ function Cell({
   );
 }
 
+const AWS_METRIC_SUB: Record<"sps" | "eviction", string> = {
+  sps: "Placement score (SPS)",
+  eviction: "Eviction rate (advisor)",
+};
+
 export default function PriceMatrix({
   data,
   spsScores = {},
+  awsUsesSps = false,
 }: {
   data: MatrixData;
   spsScores?: Record<string, number>;
+  awsUsesSps?: boolean;
 }) {
   type Group = { cloud: string; count: number };
   const groups: Group[] = [];
@@ -182,9 +207,16 @@ export default function PriceMatrix({
               <th
                 key={g.cloud}
                 colSpan={g.count}
-                className="px-3 py-2 text-center text-xs font-semibold tracking-widest uppercase text-zinc-400 border-l border-zinc-700"
+                className="px-3 py-2 text-center border-l border-zinc-700"
               >
-                {CLOUD_LABEL[g.cloud] ?? g.cloud}
+                <div className="text-xs font-semibold tracking-widest uppercase text-zinc-400">
+                  {CLOUD_LABEL[g.cloud] ?? g.cloud}
+                </div>
+                <div className="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-zinc-600">
+                  {g.cloud === "aws"
+                    ? AWS_METRIC_SUB[awsUsesSps ? "sps" : "eviction"]
+                    : "Eviction rate"}
+                </div>
               </th>
             ))}
           </tr>
