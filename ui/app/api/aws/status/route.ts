@@ -1,36 +1,57 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { AWS_CONNECTION_COOKIE } from "@/lib/aws-security";
+import { AWS_CONNECTION_COOKIE, connectionCookieOptions } from "@/lib/aws-security";
 import { getAuthenticatedSupabase } from "@/lib/aws-api";
+import { isSpottickerAwsConfigured } from "@/lib/aws-credentials";
+import {
+  getConnectionForUser,
+  getLatestConnectedForUser,
+  getLatestErrorForUser,
+} from "@/lib/aws-db";
 
 // GET /api/aws/status — whether the signed-in user has an active AWS connection
 
 export async function GET() {
   const auth = await getAuthenticatedSupabase();
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { user } = auth;
 
   const cookieStore = await cookies();
-  const connectionId = cookieStore.get(AWS_CONNECTION_COOKIE)?.value;
+  let connectionId = cookieStore.get(AWS_CONNECTION_COOKIE)?.value;
 
-  if (!connectionId) {
-    return NextResponse.json({ connected: false });
-  }
-
-  const { data: conn } = await supabase
-    .from("aws_connections")
-    .select("id, status, account_id, connected_at")
-    .eq("id", connectionId)
-    .single();
+  let conn =
+    connectionId != null
+      ? await getConnectionForUser(user.id, connectionId)
+      : null;
 
   if (!conn || conn.status !== "connected") {
-    return NextResponse.json({ connected: false });
+    const latest = await getLatestConnectedForUser(user.id);
+    if (latest?.status === "connected") {
+      conn = await getConnectionForUser(user.id, latest.id);
+      connectionId = latest.id;
+    }
   }
 
-  return NextResponse.json({
+  if (!conn || conn.status !== "connected") {
+    const lastError = await getLatestErrorForUser(user.id);
+    return NextResponse.json({
+      connected: false,
+      serverConfigured: isSpottickerAwsConfigured(),
+      lastError,
+    });
+  }
+
+  const response = NextResponse.json({
     connected: true,
     connectionId: conn.id,
     accountId: conn.account_id,
     connectedAt: conn.connected_at,
+    serverConfigured: isSpottickerAwsConfigured(),
   });
+
+  if (connectionId && cookieStore.get(AWS_CONNECTION_COOKIE)?.value !== connectionId) {
+    response.cookies.set(AWS_CONNECTION_COOKIE, connectionId, connectionCookieOptions());
+  }
+
+  return response;
 }

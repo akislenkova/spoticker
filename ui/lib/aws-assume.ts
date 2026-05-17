@@ -4,6 +4,7 @@ import {
   GetCallerIdentityCommand,
 } from "@aws-sdk/client-sts";
 import { EC2Client, GetSpotPlacementScoresCommand } from "@aws-sdk/client-ec2";
+import { getSpottickerCredentials } from "@/lib/aws-credentials";
 
 /** Instance types supported by GetSpotPlacementScores (p3.* is rejected by the API). */
 const GPU_INSTANCE_TYPES = [
@@ -43,7 +44,10 @@ function stsWithCredentials(creds: TempCredentials) {
 }
 
 export async function assumeRole(roleArn: string, externalId: string) {
-  const sts = new STSClient({ region: "us-east-1" });
+  const sts = new STSClient({
+    region: "us-east-1",
+    credentials: getSpottickerCredentials(),
+  });
   const { Credentials } = await sts.send(
     new AssumeRoleCommand({
       RoleArn: roleArn,

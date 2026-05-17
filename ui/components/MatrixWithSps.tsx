@@ -21,7 +21,7 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
   async function handleDisconnect() {
     setDisconnecting(true);
     try {
-      await fetch("/api/aws/disconnect", { method: "POST" });
+      await fetch("/api/aws/disconnect", { method: "POST", credentials: "include" });
       setSpsScores({});
       setAwsStatus({ loading: false, connected: false });
     } finally {
@@ -30,9 +30,9 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
   }
 
   useEffect(() => {
-    fetch("/api/aws/status")
+    fetch("/api/aws/status", { credentials: "include" })
       .then((r) => {
-        if (r.status === 401) return { connected: false };
+        if (r.status === 401) return { connected: false, serverConfigured: true };
         return r.json();
       })
       .then((d) => {
@@ -40,6 +40,11 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
           setAwsStatus({ loading: false, connected: true, accountId: d.accountId });
         } else {
           setAwsStatus({ loading: false, connected: false });
+          if (d.serverConfigured === false) {
+            setSpsError("Server AWS keys not configured — add SPOTTICKER_AWS_* to ui/.env.local");
+          } else if (d.lastError) {
+            setSpsError(d.lastError);
+          }
         }
       })
       .catch(() => setAwsStatus({ loading: false, connected: false }));
@@ -52,12 +57,13 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
 
     setSpsLoading(true);
     setSpsError(null);
-    fetch("/api/aws/sps", { method: "POST" })
+    fetch("/api/aws/sps", { method: "POST", credentials: "include" })
       .then(async (r) => {
         const d = await r.json();
         if (!r.ok) {
           setSpsScores({});
-          setSpsError(d.error ?? "SPS fetch failed");
+          const hint = d.hint ? ` ${d.hint}` : "";
+          setSpsError(`${d.error ?? "SPS fetch failed"}${hint}`);
           return;
         }
         const scores = d.scores ?? {};
@@ -106,11 +112,18 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
         </div>
       )}
       {!awsStatus.loading && !awsStatus.connected && (
-        <div className="text-xs text-zinc-600">
-          <Link href="/connect" className="underline hover:text-zinc-400">
-            Connect your AWS account
-          </Link>{" "}
-          for Spot Placement Scores (otherwise AWS cells use advisor eviction %).
+        <div className="text-xs text-zinc-600 space-y-1">
+          <p>
+            <Link href="/login" className="underline hover:text-zinc-400">
+              Sign in
+            </Link>
+            , then{" "}
+            <Link href="/connect" className="underline hover:text-zinc-400">
+              connect AWS
+            </Link>{" "}
+            for Spot Placement Scores (otherwise AWS cells use advisor eviction %).
+          </p>
+          {spsError ? <p className="text-amber-600/90">{spsError}</p> : null}
         </div>
       )}
       <PriceMatrix data={data} spsScores={spsScores} awsUsesSps={awsUsesSps} />

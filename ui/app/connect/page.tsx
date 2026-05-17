@@ -1,7 +1,7 @@
 "use client";
 
 import CopyField from "@/components/CopyField";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 const SPOTTICKER_ACCOUNT = process.env.NEXT_PUBLIC_AWS_ACCOUNT_ID ?? "601883338057";
 /** IAM role must exist in that account or CF returns "Invalid principal". Root always works with ExternalId. */
@@ -64,18 +64,39 @@ export default function ConnectPage() {
   const [externalId, setExternalId] = useState("");
   const [roleArn, setRoleArn] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [errorHint, setErrorHint] = useState("");
   const [awsStarted, setAwsStarted] = useState(false);
+  const [serverConfigured, setServerConfigured] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/aws/config")
+      .then((r) => r.json())
+      .then((d) => setServerConfigured(d.serverConfigured === true))
+      .catch(() => setServerConfigured(false));
+  }, []);
+
+  function redirectToLoginIfUnauthorized(resp: Response) {
+    if (resp.status === 401) {
+      window.location.href = `/login?next=${encodeURIComponent("/connect")}`;
+      return true;
+    }
+    return false;
+  }
 
   async function handleStart() {
     setStep("launching");
+    setErrorHint("");
     const resp = await fetch("/api/aws/connect", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "init" }),
     });
     const data = await resp.json();
     if (!resp.ok) {
+      if (redirectToLoginIfUnauthorized(resp)) return;
       setErrorMsg(data.error ?? "Could not start connection");
+      setErrorHint(data.hint ?? "");
       setStep("error");
       return;
     }
@@ -86,14 +107,18 @@ export default function ConnectPage() {
 
   async function handleVerify() {
     setStep("verifying");
+    setErrorHint("");
     const resp = await fetch("/api/aws/connect", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "verify", id: connectionId, role_arn: roleArn }),
     });
     const data = await resp.json();
     if (!resp.ok) {
+      if (redirectToLoginIfUnauthorized(resp)) return;
       setErrorMsg(data.error ?? "Verification failed");
+      setErrorHint(data.hint ?? "");
       setStep("error");
       return;
     }
@@ -106,7 +131,8 @@ export default function ConnectPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Connect AWS Account</h1>
           <p className="text-zinc-500 text-sm mt-1">
-            Deploy a read-only IAM role via CloudFormation — your AWS keys never leave AWS.
+            Sign in, then deploy a read-only IAM role via CloudFormation — your AWS keys never
+            leave AWS.
           </p>
         </div>
 
@@ -116,15 +142,24 @@ export default function ConnectPage() {
               We generate a unique External ID, walk you through AWS CloudFormation, then verify
               access. About 2–3 minutes.
             </p>
-            {!SPOTTICKER_ROLE_ARN && (
-              <p className="text-sm text-amber-500 rounded-lg border border-amber-800/40 bg-amber-950/20 p-3">
-                Admin: set <code className="text-amber-200">NEXT_PUBLIC_SPOTTICKER_ASSUME_ROLE_ARN</code>{" "}
-                in <code className="text-amber-200">ui/.env.local</code> and restart dev.
-              </p>
+            {serverConfigured === false && (
+              <div className="text-sm text-amber-500 rounded-lg border border-amber-800/40 bg-amber-950/20 p-3 space-y-2">
+                <p className="font-medium text-amber-200">Server AWS keys missing</p>
+                <p>
+                  Add <code className="text-amber-100">SPOTTICKER_AWS_ACCESS_KEY_ID</code> and{" "}
+                  <code className="text-amber-100">SPOTTICKER_AWS_SECRET_ACCESS_KEY</code> to{" "}
+                  <code className="text-amber-100">ui/.env.local</code>, then restart{" "}
+                  <code className="text-amber-100">npm run dev</code>.
+                </p>
+                <p className="text-xs text-amber-200/80">
+                  See <code>aws/iam/README.md</code> in the repo for IAM setup.
+                </p>
+              </div>
             )}
             <button
               onClick={handleStart}
-              className="w-full py-2.5 rounded-lg bg-white text-black font-medium hover:bg-zinc-200 transition-colors"
+              disabled={serverConfigured === false}
+              className="w-full py-2.5 rounded-lg bg-white text-black font-medium hover:bg-zinc-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Generate External ID & continue
             </button>
@@ -250,16 +285,32 @@ export default function ConnectPage() {
           <div className="rounded-lg border border-red-800 bg-red-900/30 p-4 space-y-3">
             <p className="text-red-400 font-medium">Connection failed</p>
             <p className="text-sm text-zinc-400">{errorMsg}</p>
+            {errorHint ? (
+              <p className="text-sm text-amber-200/90">{errorHint}</p>
+            ) : null}
             <p className="text-xs text-zinc-500">
               Common fixes: ExternalId in AWS must match exactly · stack must be CREATE_COMPLETE ·
               RoleArn must be from Outputs (not typed manually wrong).
             </p>
-            <button
-              onClick={() => setStep("init")}
-              className="text-sm text-zinc-400 hover:text-zinc-200 underline"
-            >
-              Start over
-            </button>
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  setErrorMsg("");
+                  setErrorHint("");
+                  if (connectionId && externalId) setStep("pasting");
+                  else setStep("init");
+                }}
+                className="text-sm text-zinc-400 hover:text-zinc-200 underline"
+              >
+                Try again
+              </button>
+              <button
+                onClick={() => setStep("init")}
+                className="text-sm text-zinc-400 hover:text-zinc-200 underline"
+              >
+                Start over
+              </button>
+            </div>
           </div>
         )}
       </div>

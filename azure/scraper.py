@@ -36,6 +36,16 @@ HEADERS = {
 
 BATCH = 500
 
+# Match ui/lib/gpu-map.ts Azure patterns — only persist GPU SKUs (keeps table small)
+_GPU_ARM_MARKERS = ("T4", "A10", "L4", "V100", "A100", "H100")
+
+
+def _is_gpu_arm(arm_sku_name: str | None) -> bool:
+    if not arm_sku_name:
+        return False
+    u = arm_sku_name.upper()
+    return any(m in u for m in _GPU_ARM_MARKERS)
+
 
 def _upsert(table: str, rows: list[dict]) -> None:
     url = f"{SUPABASE_URL}/rest/v1/{table}"
@@ -95,8 +105,8 @@ def run() -> None:
         key = (p["sku_name"], p["region"])
         if key not in deduped or (p["retail_price"] or 0) < (deduped[key]["retail_price"] or 0):
             deduped[key] = p
-    prices = list(deduped.values())
-    print(f"  {len(prices)} rows after dedup (from {len(all_prices)})")
+    prices = [p for p in deduped.values() if _is_gpu_arm(p.get("arm_sku_name"))]
+    print(f"  {len(prices)} GPU rows after dedup (from {len(all_prices)} total spot SKUs)")
     _upsert("azure_spot_prices", prices)
 
     print("Fetching eviction rates from Resource Graph …")

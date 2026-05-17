@@ -4,13 +4,16 @@ import { getSpotPlacementScores } from "@/lib/aws-assume";
 import { auditAwsEvent, AWS_CONNECTION_COOKIE } from "@/lib/aws-security";
 import { getAuthenticatedSupabase, rateLimitedResponse } from "@/lib/aws-api";
 import { rateLimit } from "@/lib/rate-limit";
+import { formatAwsError } from "@/lib/aws-errors";
+import { isSpottickerAwsConfigured } from "@/lib/aws-credentials";
+import { getConnectionForUser, getLatestConnectedForUser } from "@/lib/aws-db";
 
-// POST /api/aws/sps — uses httpOnly connection cookie; RLS enforces ownership
+// POST /api/aws/sps — uses httpOnly connection cookie; user_id enforced server-side
 
 export async function POST(req: NextRequest) {
   const auth = await getAuthenticatedSupabase();
   if (auth.response) return auth.response;
-  const { supabase, user } = auth;
+  const { user } = auth;
 
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
@@ -22,23 +25,37 @@ export async function POST(req: NextRequest) {
   const rlIp = rateLimit(`aws:sps:ip:${ip}`, 240, 60 * 60 * 1000);
   if (!rlIp.ok) return rateLimitedResponse(rlIp.retryAfterSec);
 
+  if (!isSpottickerAwsConfigured()) {
+    return NextResponse.json(
+      {
+        error: "AWS connect is not configured on the server.",
+        hint: "Set SPOTTICKER_AWS_ACCESS_KEY_ID and SPOTTICKER_AWS_SECRET_ACCESS_KEY in ui/.env.local.",
+      },
+      { status: 503 }
+    );
+  }
+
   const cookieStore = await cookies();
-  const connectionId = cookieStore.get(AWS_CONNECTION_COOKIE)?.value;
-  if (!connectionId) {
-    return NextResponse.json({ error: "No AWS connection" }, { status: 400 });
+  let connectionId = cookieStore.get(AWS_CONNECTION_COOKIE)?.value;
+
+  let conn =
+    connectionId != null
+      ? await getConnectionForUser(user.id, connectionId)
+      : null;
+
+  if (!conn || conn.status !== "connected") {
+    const latest = await getLatestConnectedForUser(user.id);
+    if (latest) {
+      conn = await getConnectionForUser(user.id, latest.id);
+      connectionId = latest.id;
+    }
   }
 
-  const { data: conn, error } = await supabase
-    .from("aws_connections")
-    .select("role_arn, external_id, status")
-    .eq("id", connectionId)
-    .single();
-
-  if (error || !conn) {
-    return NextResponse.json({ error: "Connection not found" }, { status: 404 });
-  }
-  if (conn.status !== "connected" || !conn.role_arn) {
-    return NextResponse.json({ error: "Connection not verified" }, { status: 400 });
+  if (!conn || conn.status !== "connected" || !conn.role_arn) {
+    return NextResponse.json(
+      { error: "No AWS connection", hint: "Connect at /connect after signing in." },
+      { status: 400 }
+    );
   }
 
   try {
@@ -50,15 +67,15 @@ export async function POST(req: NextRequest) {
 
     auditAwsEvent("sps_ok", {
       userId: user.id,
-      connectionId,
+      connectionId: conn.id,
       regionCount: Object.keys(scores).length,
     });
 
     return NextResponse.json({ scores });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("aws sps failed", { userId: user.id, connectionId, msg });
-    auditAwsEvent("sps_fail", { userId: user.id, connectionId });
-    return NextResponse.json({ error: "Could not fetch Spot Placement Scores" }, { status: 500 });
+    const { message, hint } = formatAwsError(err);
+    console.error("aws sps failed", { userId: user.id, connectionId: conn.id, message });
+    auditAwsEvent("sps_fail", { userId: user.id, connectionId: conn.id });
+    return NextResponse.json({ error: message, hint }, { status: 500 });
   }
 }

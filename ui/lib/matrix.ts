@@ -108,10 +108,56 @@ function telemetryLabel(evictionsPerHour: number): string {
   return `~${daily.toFixed(1)}%/day`;
 }
 
+const AZURE_GPU_PRICE_FILTER =
+  "arm_sku_name.ilike.%T4%,arm_sku_name.ilike.%A10%,arm_sku_name.ilike.%L4%,arm_sku_name.ilike.%V100%,arm_sku_name.ilike.%A100%,arm_sku_name.ilike.%H100%";
+
+type AzurePriceRow = {
+  arm_sku_name: string | null;
+  sku_name: string | null;
+  region: string;
+  retail_price: number;
+};
+
+/** Fallback when latest_azure_spot_prices() RPC times out on large history tables. */
+async function fetchAzurePricesLatestBatch(): Promise<AzurePriceRow[]> {
+  const { data: head } = await supabase
+    .from("azure_spot_prices")
+    .select("fetched_at")
+    .order("fetched_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!head?.fetched_at) return [];
+
+  const { data, error } = await supabase
+    .from("azure_spot_prices")
+    .select("arm_sku_name, sku_name, region, retail_price")
+    .eq("fetched_at", head.fetched_at)
+    .or(AZURE_GPU_PRICE_FILTER);
+
+  if (error) {
+    console.error("[azure] latest batch prices:", error.message);
+    return [];
+  }
+
+  const byKey = new Map<string, AzurePriceRow>();
+  for (const row of data ?? []) {
+    if (!row.arm_sku_name || !row.region) continue;
+    const key = `${row.arm_sku_name}::${row.region}`;
+    const existing = byKey.get(key);
+    if (!existing || row.retail_price < existing.retail_price) {
+      byKey.set(key, row as AzurePriceRow);
+    }
+  }
+  return [...byKey.values()];
+}
+
 async function fetchAzure(): Promise<Map<string, CellEntry>> {
-  const [{ data: prices, error: pricesErr }, { data: evictionRows, error: evErr }, { data: telemetry, error: telErr }] =
+  const pricesRpc = supabase.rpc("latest_azure_spot_prices");
+
+  const [{ data: pricesRpcData, error: pricesErr }, { data: evictionRows, error: evErr }, { data: telemetry, error: telErr }] =
     await Promise.all([
-      supabase.rpc("latest_azure_spot_prices"),
+      pricesRpc,
       // RPC is capped at 1000 rows by PostgREST; query GPU SKUs directly instead
       supabase
         .from("azure_spot_eviction_rates")
@@ -124,7 +170,12 @@ async function fetchAzure(): Promise<Map<string, CellEntry>> {
       supabase.from("eviction_rates_30d").select("region, evictions_per_hour"),
     ]);
 
-  if (pricesErr) console.error("[azure] latest_azure_spot_prices:", pricesErr.message);
+  let prices = pricesRpcData;
+  if (pricesErr) {
+    console.error("[azure] latest_azure_spot_prices:", pricesErr.message);
+    prices = await fetchAzurePricesLatestBatch();
+  }
+
   if (evErr) console.error("[azure] azure_spot_eviction_rates:", evErr.message);
   if (telErr) console.error("[azure] eviction_rates_30d:", telErr.message);
 
