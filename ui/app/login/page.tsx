@@ -19,6 +19,10 @@ function LoginForm() {
     setMessage("");
 
     const supabase = createClient();
+
+    // Clear any stale session before requesting a new magic link
+    await supabase.auth.signOut();
+
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
     const { error } = await supabase.auth.signInWithOtp({
@@ -28,7 +32,15 @@ function LoginForm() {
 
     if (error) {
       setStatus("error");
-      setMessage("Could not send sign-in link. Try again.");
+      const isRateLimit =
+        error.message.toLowerCase().includes("rate") ||
+        error.message.toLowerCase().includes("too many") ||
+        error.status === 429;
+      setMessage(
+        isRateLimit
+          ? "Please wait a minute before requesting a new link."
+          : "Could not send sign-in link. Try again."
+      );
       return;
     }
 
