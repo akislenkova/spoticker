@@ -1,10 +1,12 @@
 "use client";
 
-import SpotContextGuide from "@/components/SpotContextGuide";
-import { useState, type FormEvent } from "react";
+import { useState, useRef, useEffect, type KeyboardEvent } from "react";
 
-const EXAMPLE_PROMPT =
-  "I need 4x A100s for 8 hours of fine-tuning, batch job, can tolerate eviction";
+const EXAMPLE_PROMPTS = [
+  "I need 4× A100s for 8 h fine-tuning, batch job, can tolerate eviction",
+  "Cheapest H100 spot in Europe for 48 h batch training",
+  "T4 spot for cost-sensitive inference, need low eviction risk",
+];
 
 type RecommendationOption = {
   cloud: string;
@@ -26,129 +28,252 @@ type Recommendation = {
   options: RecommendationOption[];
 };
 
+type Message = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  recommendation?: Recommendation;
+  error?: string;
+  loading?: boolean;
+};
+
 export default function RecommendationPanel() {
-  const [prompt, setPrompt] = useState("");
-  const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const trimmed = prompt.trim();
-    if (!trimmed) return;
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-    setError(null);
-    setRecommendation(null);
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [input]);
+
+  async function send(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || loading) return;
+
+    const userId = `u-${Date.now()}`;
+    const assistantId = `a-${Date.now()}`;
+
+    setMessages((prev) => [
+      ...prev,
+      { id: userId, role: "user", text: trimmed },
+      { id: assistantId, role: "assistant", text: "", loading: true },
+    ]);
+    setInput("");
     setLoading(true);
 
     try {
-      const response = await fetch("/api/recommend", {
+      const res = await fetch("/api/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: trimmed }),
       });
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.error || "Unable to fetch recommendation.");
-      } else {
-        setRecommendation(data.recommendation);
-      }
-    } catch (err) {
-      setError("Unable to connect to recommendation engine.");
-      console.error(err);
+      const data = await res.json();
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? {
+                ...m,
+                loading: false,
+                text: res.ok ? (data.recommendation?.summary ?? "") : "",
+                recommendation: res.ok ? data.recommendation : undefined,
+                error: !res.ok ? (data.error ?? "Something went wrong.") : undefined,
+              }
+            : m
+        )
+      );
+    } catch {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? { ...m, loading: false, error: "Unable to connect to recommendation engine." }
+            : m
+        )
+      );
     } finally {
       setLoading(false);
     }
   }
 
+  function handleKey(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send(input);
+    }
+  }
+
+  const isEmpty = messages.length === 0;
+
   return (
-    <section className="rounded-3xl border border-zinc-800 bg-zinc-950/80 p-6 shadow-xl shadow-black/20">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight text-white">Ask Spoticker</h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Describe your workload; get a risk-adjusted GPU spot pick from live pricing and
-            eviction data.
+    <section className="rounded-3xl border border-zinc-800 bg-zinc-950/80 shadow-xl shadow-black/20 flex flex-col">
+      {/* Header */}
+      <div className="px-6 pt-5 pb-4 border-b border-zinc-800/60 flex items-center gap-3">
+        <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-xs font-bold text-black flex-shrink-0">
+          S
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-white leading-tight">Ask Spoticker</h2>
+            <span className="rounded-full border border-emerald-800 bg-emerald-950/60 px-2 py-0.5 text-[10px] font-medium text-emerald-400 tracking-wide">
+              GBrain
+            </span>
+          </div>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            GBrain agents have full context of live GPU spot pricing and eviction data — describe your workload and get an opinionated, risk-adjusted pick.
           </p>
         </div>
       </div>
 
-      <div className="mt-4">
-        <SpotContextGuide />
-      </div>
-
-      <form className="mt-5 space-y-3" onSubmit={handleSubmit}>
-        <label className="block text-[13px] font-medium text-zinc-300">
-          Workload prompt
-          <textarea
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            placeholder={EXAMPLE_PROMPT}
-            className="mt-2 h-28 w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 placeholder:italic outline-none transition hover:border-zinc-700 focus:border-emerald-500"
-          />
-        </label>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <button
-            type="button"
-            onClick={() => setPrompt(EXAMPLE_PROMPT)}
-            className="text-left text-xs text-zinc-600 hover:text-zinc-400 transition"
-          >
-            Use example prompt
-          </button>
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={loading || !prompt.trim()}
-          >
-            {loading ? "Thinking…" : "Ask Spoticker"}
-          </button>
-        </div>
-      </form>
-
-      {error ? (
-        <div className="mt-4 rounded-2xl border border-red-700 bg-red-950/40 px-4 py-3 text-sm text-red-200">
-          {error}
-        </div>
-      ) : null}
-
-      {recommendation ? (
-        <div className="mt-4 space-y-4 rounded-3xl border border-zinc-800 bg-zinc-900/80 p-5">
-          <div className="space-y-2">
-            <div className="text-sm uppercase tracking-[0.22em] text-emerald-400">Recommendation</div>
-            <h3 className="text-xl font-semibold text-white">{recommendation.title}</h3>
-            <p className="text-sm text-zinc-300">{recommendation.summary}</p>
+      {/* Messages */}
+      <div
+        className={`px-6 py-5 overflow-y-auto ${
+          isEmpty
+            ? "flex flex-col items-center justify-center min-h-[280px]"
+            : "space-y-5 min-h-[180px] max-h-[540px]"
+        }`}
+      >
+        {isEmpty ? (
+          <div className="w-full max-w-lg space-y-5 text-center">
+            <p className="text-zinc-400 text-sm font-medium">
+              What GPU spot instance fits your workload?
+            </p>
+            <p className="text-zinc-600 text-xs -mt-2">
+              GBrain agents read live pricing and eviction data across AWS and Azure to make the best call for your job.
+            </p>
+            <div className="flex flex-col gap-2">
+              {EXAMPLE_PROMPTS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => send(p)}
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 text-left text-xs text-zinc-400 hover:border-zinc-700 hover:text-zinc-200 transition"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
           </div>
-
-          <div className="rounded-3xl bg-zinc-950/90 p-4 text-sm text-zinc-300">
-            {recommendation.reasoning}
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-3">
-            {recommendation.options.map((option) => (
+        ) : (
+          <>
+            {messages.map((msg) => (
               <div
-                key={`${option.cloud}-${option.region}-${option.gpu}`}
-                className="rounded-3xl border border-zinc-800 bg-zinc-950 p-4"
+                key={msg.id}
+                className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}
               >
-                <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                  {option.cloud.toUpperCase()}
-                </div>
-                <div className="mt-2 text-sm font-semibold text-white">{option.gpu}</div>
-                <div className="text-sm text-zinc-400">{option.region}</div>
-                <div className="mt-3 text-sm text-zinc-100">${option.price.toFixed(4)}/GPU</div>
-                <div className="mt-1 text-xs text-zinc-400">Risk: {option.riskTier}</div>
-                <div className="mt-2 text-[13px] text-zinc-500">
-                  {option.evictionLabel ?? "No eviction data"}
+                {msg.role === "assistant" && (
+                  <div className="flex-shrink-0 w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-xs font-bold text-black mt-0.5">
+                    S
+                  </div>
+                )}
+
+                <div className={`max-w-[85%] ${msg.role === "user" ? "ml-auto" : ""}`}>
+                  {msg.role === "user" ? (
+                    <div className="rounded-2xl bg-zinc-800 px-4 py-2.5 text-sm text-zinc-100 leading-relaxed">
+                      {msg.text}
+                    </div>
+                  ) : msg.loading ? (
+                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-zinc-500 flex items-center gap-2">
+                      <span className="inline-flex gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.3s]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.15s]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-bounce" />
+                      </span>
+                      <span>Analyzing spot market…</span>
+                    </div>
+                  ) : msg.error ? (
+                    <div className="rounded-2xl border border-red-700 bg-red-950/40 px-4 py-3 text-sm text-red-200">
+                      {msg.error}
+                    </div>
+                  ) : msg.recommendation ? (
+                    <RecommendationCard rec={msg.recommendation} />
+                  ) : null}
                 </div>
               </div>
             ))}
-          </div>
+            <div ref={bottomRef} />
+          </>
+        )}
+      </div>
 
-          <div className="text-xs text-zinc-500">
-            Sources: {recommendation.sources.join(", ")}
-          </div>
+      {/* Input */}
+      <div className="px-4 pb-4 pt-2 border-t border-zinc-800/60">
+        <div className="flex items-end gap-3 rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 focus-within:border-emerald-500 transition-colors">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder="Describe your workload…"
+            rows={1}
+            className="flex-1 resize-none bg-transparent text-sm text-zinc-100 placeholder:text-zinc-600 outline-none max-h-32 leading-relaxed"
+          />
+          <button
+            onClick={() => send(input)}
+            disabled={loading || !input.trim()}
+            className="flex-shrink-0 w-8 h-8 rounded-xl bg-emerald-500 flex items-center justify-center text-black transition hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label="Send"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 19V5M5 12l7-7 7 7" />
+            </svg>
+          </button>
         </div>
-      ) : null}
+        <p className="mt-2 text-center text-[11px] text-zinc-700">
+          Powered by GBrain · Enter ↵ to send · Shift+Enter for new line
+        </p>
+      </div>
     </section>
+  );
+}
+
+function RecommendationCard({ rec }: { rec: Recommendation }) {
+  return (
+    <div className="space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm">
+      <div>
+        <div className="text-[11px] uppercase tracking-[0.2em] text-emerald-400 mb-1">
+          Recommendation
+        </div>
+        <div className="font-semibold text-white">{rec.title}</div>
+        <p className="mt-1 text-zinc-300 leading-relaxed">{rec.summary}</p>
+      </div>
+
+      <div className="rounded-xl bg-zinc-950/80 px-3 py-2.5 text-[13px] text-zinc-400 leading-relaxed">
+        {rec.reasoning}
+      </div>
+
+      {rec.options.length > 0 && (
+        <div className="grid gap-2 sm:grid-cols-3">
+          {rec.options.map((opt) => (
+            <div
+              key={`${opt.cloud}-${opt.region}-${opt.gpu}`}
+              className="rounded-xl border border-zinc-800 bg-zinc-950 p-3"
+            >
+              <div className="text-[10px] uppercase tracking-wider text-zinc-600">
+                {opt.cloud.toUpperCase()}
+              </div>
+              <div className="mt-1 text-sm font-semibold text-white">{opt.gpu}</div>
+              <div className="text-xs text-zinc-400">{opt.region}</div>
+              <div className="mt-2 text-sm text-zinc-100">${opt.price.toFixed(4)}/GPU</div>
+              <div className="mt-0.5 text-xs text-zinc-500">Risk: {opt.riskTier}</div>
+              <div className="mt-1.5 text-[11px] text-zinc-600">
+                {opt.evictionLabel ?? "No eviction data"}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {rec.sources.length > 0 && (
+        <div className="text-[11px] text-zinc-600">Sources: {rec.sources.join(", ")}</div>
+      )}
+    </div>
   );
 }

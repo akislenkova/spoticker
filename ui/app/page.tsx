@@ -16,7 +16,7 @@ export default async function Home() {
           <h1 className="text-2xl font-bold tracking-tight">GPU Spot Availability</h1>
           <p className="text-zinc-500 text-sm mt-1 max-w-2xl">
             Compare GPU spot prices and eviction risk across regions, or ask Spoticker for a
-            workload-specific recommendation powered by live data and GBrain context.
+            workload-specific recommendation — GBrain agents have full context and pick the best option for your job.
           </p>
         </div>
 
