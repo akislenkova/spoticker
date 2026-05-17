@@ -20,9 +20,6 @@ function LoginForm() {
 
     const supabase = createClient();
 
-    // Clear any stale session before requesting a new magic link
-    await supabase.auth.signOut();
-
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
     const { error } = await supabase.auth.signInWithOtp({
