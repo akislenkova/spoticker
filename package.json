@@ -1,0 +1,10 @@
+{
+  "name": "spoticker",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix ui",
+    "build": "npm run build --prefix ui",
+    "start": "npm run start --prefix ui",
+    "lint": "npm run lint --prefix ui"
+  }
+}
