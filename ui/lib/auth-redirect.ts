@@ -1,11 +1,12 @@
 /** Canonical app origin for magic-link redirects (must match Supabase Auth URL config). */
 export function getAppOrigin(): string {
+  // In the browser, always use the tab the user is on (avoids localhost vs :3001 mismatches).
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return normalizeOrigin(window.location.origin);
+  }
   const fromEnv = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim();
   if (fromEnv) {
     return normalizeOrigin(fromEnv);
-  }
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return normalizeOrigin(window.location.origin);
   }
   return "http://localhost:3000";
 }

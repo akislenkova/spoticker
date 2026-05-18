@@ -9,6 +9,16 @@ function LoginForm() {
   const params = useSearchParams();
   const next = params.get("next") ?? "/";
   const authError = params.get("error") === "auth";
+  const authReason = params.get("reason") ?? "";
+
+  const authErrorMessage =
+    authReason === "different_browser"
+      ? "Open the sign-in link in the same browser where you requested it (e.g. don’t switch from Chrome to Mail’s in-app browser)."
+      : authReason === "missing"
+        ? "Sign-in link was incomplete or expired. Request a new link."
+        : authReason === "otp" || authReason === "exchange"
+          ? "Sign-in link expired or was already used. Request a new link."
+          : "Sign-in failed. Request a new link.";
 
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -57,7 +67,7 @@ function LoginForm() {
         </div>
 
         {authError && (
-          <p className="text-sm text-red-400">Sign-in failed. Request a new link.</p>
+          <p className="text-sm text-red-400">{authErrorMessage}</p>
         )}
 
         {status === "sent" ? (
