@@ -9,11 +9,20 @@ export function formatAwsError(err: unknown): { message: string; hint?: string }
 
   const name = err && typeof err === "object" && "name" in err ? String(err.name) : "";
   const code =
-    err && typeof err === "object" && "Code" in err
-      ? String((err as { Code?: string }).Code)
-      : err && typeof err === "object" && "$metadata" in err
-        ? ""
-        : "";
+    err && typeof err === "object"
+      ? String(
+          ("Code" in err && (err as { Code?: string }).Code) ||
+            ("code" in err && (err as { code?: string }).code) ||
+            ""
+        )
+      : "";
+
+  if (name === "SpottickerAwsNotConfiguredError") {
+    return {
+      message: "Spoticker server is not configured with AWS credentials.",
+      hint: "Set SPOTTICKER_AWS_ACCESS_KEY_ID and SPOTTICKER_AWS_SECRET_ACCESS_KEY in ui/.env.local (restart npm run dev).",
+    };
+  }
 
   const text = `${name} ${code} ${raw}`.toLowerCase();
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { buildAuthCallbackUrl } from "@/lib/auth-redirect";
 import { createClient } from "@/lib/supabase/browser";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -20,7 +21,7 @@ function LoginForm() {
 
     const supabase = createClient();
 
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
+    const redirectTo = buildAuthCallbackUrl(next);
 
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),

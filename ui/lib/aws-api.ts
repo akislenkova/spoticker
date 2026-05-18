@@ -1,12 +1,24 @@
 import { createClient } from "@/lib/supabase/server";
-import { requireUser } from "@/lib/aws-security";
 import { NextResponse } from "next/server";
 
 export async function getAuthenticatedSupabase() {
   const supabase = await createClient();
-  const user = await requireUser(() => supabase.auth.getUser());
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  if (error) {
+    console.error("aws api auth getUser", error.message);
+  }
   if (!user) {
-    return { supabase: null as null, user: null, response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    return {
+      supabase: null as null,
+      user: null,
+      response: NextResponse.json(
+        { error: "Unauthorized", hint: "Sign in at /login, then try again." },
+        { status: 401 }
+      ),
+    };
   }
   return { supabase, user, response: null };
 }

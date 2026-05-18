@@ -69,9 +69,15 @@ export default function ConnectPage() {
   const [serverConfigured, setServerConfigured] = useState<boolean | null>(null);
 
   useEffect(() => {
-    fetch("/api/aws/config")
-      .then((r) => r.json())
-      .then((d) => setServerConfigured(d.serverConfigured === true))
+    fetch("/api/aws/config", { credentials: "include" })
+      .then(async (r) => {
+        if (!r.ok) {
+          setServerConfigured(false);
+          return;
+        }
+        const d = await r.json();
+        setServerConfigured(d.serverConfigured === true);
+      })
       .catch(() => setServerConfigured(false));
   }, []);
 
