@@ -5,6 +5,16 @@ import { fileURLToPath } from "url";
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.spoticker.com" }],
+        destination: "https://spoticker.com/:path*",
+        permanent: true,
+      },
+    ];
+  },
   // Only needed for local dev when a package-lock.json exists above the repo
   ...(process.env.NODE_ENV === "development"
     ? {

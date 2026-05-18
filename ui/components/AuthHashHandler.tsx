@@ -2,22 +2,39 @@
 
 import { createClient } from "@/lib/supabase/browser";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /**
- * Handles implicit-flow tokens in the URL hash (#access_token=…).
- * PKCE magic links use ?code= on /auth/callback instead; this covers older templates.
+ * Catches auth params when Supabase redirects to the site root (or wrong path):
+ * - ?code=… (PKCE) → forward to /auth/callback for browser-side exchange
+ * - #access_token=… (implicit) → establish session in-browser
  */
 export default function AuthHashHandler() {
   const router = useRouter();
+  const handled = useRef(false);
 
   useEffect(() => {
-    const hash = window.location.hash;
+    if (handled.current) return;
+
+    const { pathname, search, hash } = window.location;
+
+    const params = new URLSearchParams(search);
+    const code = params.get("code");
+    const token_hash = params.get("token_hash");
+    const type = params.get("type");
+
+    if (pathname !== "/auth/callback" && (code || (token_hash && type))) {
+      handled.current = true;
+      router.replace(`/auth/callback${search}`);
+      return;
+    }
+
     if (!hash.includes("access_token")) return;
 
+    handled.current = true;
     const supabase = createClient();
     supabase.auth.getSession().then(({ data: { session } }) => {
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      window.history.replaceState(null, "", pathname + search);
       if (session) {
         router.refresh();
       } else {
