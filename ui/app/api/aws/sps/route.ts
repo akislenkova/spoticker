@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   if (!conn || conn.status !== "connected" || !conn.role_arn) {
     return NextResponse.json(
-      { error: "No AWS connection", hint: "Connect at /connect after signing in." },
+      { error: "No AWS connection", hint: "Connect AWS at /connect." },
       { status: 400 }
     );
   }

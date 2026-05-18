@@ -19,13 +19,13 @@ export default async function AuthHeader() {
             <>
               <span className="text-zinc-500 truncate max-w-[200px]">{user.email}</span>
               <Link href="/connect" className="text-zinc-400 hover:text-zinc-200">
-                AWS connect
+                Connect AWS
               </Link>
               <SignOutButton />
             </>
           ) : (
-            <Link href="/login" className="text-zinc-400 hover:text-zinc-200">
-              Sign in
+            <Link href="/connect" className="text-zinc-400 hover:text-zinc-200">
+              Connect AWS
             </Link>
           )}
         </nav>

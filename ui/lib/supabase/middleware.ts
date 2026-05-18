@@ -36,20 +36,18 @@ export async function updateSession(request: NextRequest) {
   // Public AWS routes (no session required) — see route comments
   const isPublicAwsApi =
     path === "/api/aws/config" || path === "/api/aws/cfn-template";
-  const isProtected =
-    path.startsWith("/connect") ||
-    (path.startsWith("/api/aws/") && !isPublicAwsApi);
+  const isProtected = path.startsWith("/api/aws/") && !isPublicAwsApi;
 
   if (!user && isProtected && !isAuthRoute) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    loginUrl.searchParams.set("next", path);
-    return NextResponse.redirect(loginUrl);
+    const connectUrl = request.nextUrl.clone();
+    connectUrl.pathname = "/connect";
+    return NextResponse.redirect(connectUrl);
   }
 
-  if (user && path === "/login") {
-    const next = request.nextUrl.searchParams.get("next") || "/";
-    return NextResponse.redirect(new URL(next, request.url));
+  if (path === "/login") {
+    const connectUrl = request.nextUrl.clone();
+    connectUrl.pathname = "/connect";
+    return NextResponse.redirect(connectUrl);
   }
 
   supabaseResponse.headers.set("Cache-Control", "private, no-store");

@@ -114,12 +114,8 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
       {!awsStatus.loading && !awsStatus.connected && (
         <div className="text-xs text-zinc-600 space-y-1">
           <p>
-            <Link href="/login" className="underline hover:text-zinc-400">
-              Sign in
-            </Link>
-            , then{" "}
             <Link href="/connect" className="underline hover:text-zinc-400">
-              connect AWS
+              Connect AWS
             </Link>{" "}
             for Spot Placement Scores (otherwise AWS cells use advisor eviction %).
           </p>

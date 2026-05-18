@@ -17,16 +17,10 @@ export default function NotFound() {
             GPU matrix
           </Link>
           <Link
-            href="/login"
-            className="px-4 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:border-zinc-500"
-          >
-            Sign in
-          </Link>
-          <Link
             href="/connect"
             className="px-4 py-2 rounded-lg border border-zinc-700 text-zinc-300 hover:border-zinc-500"
           >
-            AWS connect
+            Connect AWS
           </Link>
         </div>
       </div>

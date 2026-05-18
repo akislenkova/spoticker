@@ -17,7 +17,8 @@ function AuthCallbackHandler() {
     const supabase = createClient();
     const next = (() => {
       const n = searchParams.get("next");
-      return n && n.startsWith("/") && !n.startsWith("//") ? n : "/";
+      if (n && n.startsWith("/") && !n.startsWith("//")) return n;
+      return "/connect";
     })();
 
     const code = searchParams.get("code");

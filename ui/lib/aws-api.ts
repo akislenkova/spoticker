@@ -15,7 +15,7 @@ export async function getAuthenticatedSupabase() {
       supabase: null as null,
       user: null,
       response: NextResponse.json(
-        { error: "Unauthorized", hint: "Sign in at /login, then try again." },
+        { error: "Unauthorized", hint: "Continue at /connect to verify your email." },
         { status: 401 }
       ),
     };

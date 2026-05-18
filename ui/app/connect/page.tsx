@@ -1,6 +1,8 @@
 "use client";
 
+import ConnectEmailStep from "@/components/ConnectEmailStep";
 import CopyField from "@/components/CopyField";
+import { createClient } from "@/lib/supabase/browser";
 import { useEffect, useState, type ReactNode } from "react";
 
 const SPOTTICKER_ACCOUNT = process.env.NEXT_PUBLIC_AWS_ACCOUNT_ID ?? "601883338057";
@@ -67,6 +69,13 @@ export default function ConnectPage() {
   const [errorHint, setErrorHint] = useState("");
   const [awsStarted, setAwsStarted] = useState(false);
   const [serverConfigured, setServerConfigured] = useState<boolean | null>(null);
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    createClient()
+      .auth.getUser()
+      .then(({ data: { user } }) => setSignedIn(!!user));
+  }, []);
 
   useEffect(() => {
     fetch("/api/aws/config", { credentials: "include" })
@@ -81,9 +90,10 @@ export default function ConnectPage() {
       .catch(() => setServerConfigured(false));
   }, []);
 
-  function redirectToLoginIfUnauthorized(resp: Response) {
+  function handleUnauthorized(resp: Response) {
     if (resp.status === 401) {
-      window.location.href = `/login?next=${encodeURIComponent("/connect")}`;
+      setSignedIn(false);
+      setStep("init");
       return true;
     }
     return false;
@@ -100,7 +110,7 @@ export default function ConnectPage() {
     });
     const data = await resp.json();
     if (!resp.ok) {
-      if (redirectToLoginIfUnauthorized(resp)) return;
+      if (handleUnauthorized(resp)) return;
       setErrorMsg(data.error ?? "Could not start connection");
       setErrorHint(data.hint ?? "");
       setStep("error");
@@ -122,7 +132,7 @@ export default function ConnectPage() {
     });
     const data = await resp.json();
     if (!resp.ok) {
-      if (redirectToLoginIfUnauthorized(resp)) return;
+      if (handleUnauthorized(resp)) return;
       setErrorMsg(data.error ?? "Verification failed");
       setErrorHint(data.hint ?? "");
       setStep("error");
@@ -135,14 +145,19 @@ export default function ConnectPage() {
     <main className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-6">
       <div className="w-full max-w-xl space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Connect AWS Account</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Connect AWS</h1>
           <p className="text-zinc-500 text-sm mt-1">
-            Sign in, then deploy a read-only IAM role via CloudFormation — your AWS keys never
-            leave AWS.
+            Deploy a read-only IAM role via CloudFormation — your AWS keys never leave AWS.
           </p>
         </div>
 
-        {step === "init" && (
+        {signedIn === null && (
+          <p className="text-sm text-zinc-500 animate-pulse">Loading…</p>
+        )}
+
+        {signedIn === false && <ConnectEmailStep />}
+
+        {signedIn === true && step === "init" && (
           <div className="space-y-4">
             <p className="text-sm text-zinc-400">
               We generate a unique External ID, walk you through AWS CloudFormation, then verify
@@ -172,11 +187,11 @@ export default function ConnectPage() {
           </div>
         )}
 
-        {step === "launching" && (
+        {signedIn === true && step === "launching" && (
           <p className="text-zinc-400 text-sm animate-pulse">Generating your External ID…</p>
         )}
 
-        {step === "pasting" && (
+        {signedIn === true && step === "pasting" && (
           <div className="space-y-5">
             <ol className="list-none space-y-0">
               <AwsGuideStep n={1} title="Open AWS & upload the template" done={awsStarted}>
@@ -283,11 +298,11 @@ export default function ConnectPage() {
           </div>
         )}
 
-        {step === "verifying" && (
+        {signedIn === true && step === "verifying" && (
           <p className="text-zinc-400 text-sm animate-pulse">Verifying role in your AWS account…</p>
         )}
 
-        {step === "error" && (
+        {signedIn === true && step === "error" && (
           <div className="rounded-lg border border-red-800 bg-red-900/30 p-4 space-y-3">
             <p className="text-red-400 font-medium">Connection failed</p>
             <p className="text-sm text-zinc-400">{errorMsg}</p>
