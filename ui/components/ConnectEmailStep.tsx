@@ -53,19 +53,19 @@ function ConnectEmailForm() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-zinc-400">
+      <p className="font-mono text-sm text-[#4a6a58]">
         Enter your email — we&apos;ll send a one-time link, then you&apos;ll set up a read-only
         IAM role in AWS (about 2–3 minutes).
       </p>
 
-      {authError && <p className="text-sm text-red-400">{authErrorMessage}</p>}
+      {authError && <p className="font-mono text-sm text-[#d07080]">{authErrorMessage}</p>}
 
       {status === "sent" ? (
-        <p className="text-sm text-emerald-400">{message}</p>
+        <p className="font-mono text-sm text-[#00ff88]">{message}</p>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="connect-email" className="text-xs text-zinc-500 uppercase tracking-wider">
+            <label htmlFor="connect-email" className="font-mono text-[10px] text-[#2d4038] uppercase tracking-[0.2em]">
               Email
             </label>
             <input
@@ -75,17 +75,19 @@ function ConnectEmailForm() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-400"
+              className="w-full bg-[rgba(0,4,3,0.8)] border border-[rgba(0,255,136,0.12)] rounded px-3 py-2 font-mono text-sm text-[#c8f0dc] placeholder:text-[#1e3028] focus:outline-none focus:border-[rgba(0,255,136,0.35)] focus:shadow-[0_0_12px_rgba(0,255,136,0.08)] transition-all"
             />
           </div>
           <button
             type="submit"
             disabled={status === "sending"}
-            className="w-full py-2.5 rounded-lg bg-white text-black font-medium hover:bg-zinc-200 transition-colors disabled:opacity-40"
+            className="w-full py-2.5 rounded border border-[rgba(0,255,136,0.3)] bg-[rgba(0,255,136,0.08)] font-mono font-medium text-[#00ff88] hover:bg-[rgba(0,255,136,0.14)] hover:border-[rgba(0,255,136,0.5)] hover:shadow-[0_0_16px_rgba(0,255,136,0.12)] transition-all disabled:opacity-40"
           >
-            {status === "sending" ? "Sending…" : "Continue with email"}
+            {status === "sending" ? "&gt;_ Sending…" : "&gt; Continue with email"}
           </button>
-          {status === "error" && <p className="text-sm text-red-400">{message}</p>}
+          {status === "error" && (
+            <p className="font-mono text-sm text-[#d07080]">{message}</p>
+          )}
         </form>
       )}
     </div>
@@ -94,7 +96,7 @@ function ConnectEmailForm() {
 
 export default function ConnectEmailStep() {
   return (
-    <Suspense fallback={<p className="text-sm text-zinc-500 animate-pulse">Loading…</p>}>
+    <Suspense fallback={<p className="font-mono text-sm text-[#2d4038] animate-pulse">Loading…</p>}>
       <ConnectEmailForm />
     </Suspense>
   );

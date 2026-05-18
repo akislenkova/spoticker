@@ -3,7 +3,6 @@
 import { MatrixData, CellData } from "@/lib/matrix";
 import { CellColor, GpuLabel } from "@/lib/gpu-map";
 
-/** Representative instance type per GPU for SPS lookup (must match aws-assume.ts). */
 const AWS_SPS_INSTANCE: Partial<Record<GpuLabel, string>> = {
   T4: "g4dn.xlarge",
   A10G: "g5.xlarge",
@@ -25,28 +24,48 @@ function spsScoreForCell(
 const CLOUD_LABEL: Record<string, string> = { aws: "AWS", azure: "Azure" };
 
 const CELL_BG: Record<CellColor, string> = {
-  green:  "bg-emerald-900/60 border-emerald-700",
-  yellow: "bg-amber-900/60 border-amber-700",
-  red:    "bg-red-900/60 border-red-700",
-  gray:   "bg-zinc-800/40 border-zinc-700",
+  green:  "bg-[rgba(0,255,136,0.05)] border-[rgba(0,255,136,0.22)]",
+  yellow: "bg-[rgba(255,190,0,0.05)] border-[rgba(255,190,0,0.2)]",
+  red:    "bg-[rgba(255,50,80,0.05)] border-[rgba(255,50,80,0.18)]",
+  gray:   "bg-[rgba(255,255,255,0.015)] border-[rgba(255,255,255,0.06)]",
 };
 
-const DOT: Record<CellColor, string> = {
-  green:  "bg-emerald-400",
-  yellow: "bg-amber-400",
-  red:    "bg-red-400",
-  gray:   "bg-zinc-600",
+const CELL_HOVER: Record<CellColor, string> = {
+  green:  "hover:border-[rgba(0,255,136,0.45)] hover:bg-[rgba(0,255,136,0.08)]",
+  yellow: "hover:border-[rgba(255,190,0,0.4)] hover:bg-[rgba(255,190,0,0.08)]",
+  red:    "hover:border-[rgba(255,50,80,0.38)] hover:bg-[rgba(255,50,80,0.08)]",
+  gray:   "hover:border-[rgba(255,255,255,0.12)]",
 };
 
-/** Column width includes td padding — inner box is w-full so cells never bleed into neighbors. */
+const DOT_COLOR: Record<CellColor, string> = {
+  green:  "bg-[#00ff88]",
+  yellow: "bg-[#ffc200]",
+  red:    "bg-[#ff4060]",
+  gray:   "bg-[#2d4038]",
+};
+
+const DOT_GLOW: Record<CellColor, string> = {
+  green:  "shadow-[0_0_5px_rgba(0,255,136,0.8)]",
+  yellow: "shadow-[0_0_5px_rgba(255,194,0,0.8)]",
+  red:    "shadow-[0_0_5px_rgba(255,64,96,0.8)]",
+  gray:   "",
+};
+
+const PRICE_COLOR: Record<CellColor, string> = {
+  green:  "text-[#a0dfc0]",
+  yellow: "text-[#d4b060]",
+  red:    "text-[#d07080]",
+  gray:   "text-[#4a6a58]",
+};
+
 const COL_W = "w-[112px] min-w-[112px] max-w-[112px]";
 const CELL_TD = `${COL_W} p-1 align-middle`;
 const CELL_BOX =
-  "w-full h-[78px] box-border flex flex-col justify-between gap-0 rounded border px-1.5 py-1 text-center overflow-hidden";
+  "w-full h-[78px] box-border flex flex-col justify-between gap-0 rounded border px-1.5 py-1 text-center overflow-hidden transition-all duration-150";
 const CELL_BOX_EMPTY =
   "w-full h-[78px] box-border flex flex-col items-center justify-center rounded border px-1.5 py-1 text-center";
 const COL_TH =
-  `${COL_W} p-1 text-center text-[11px] font-normal text-zinc-500 border-l border-zinc-700 whitespace-nowrap`;
+  `${COL_W} p-1 text-center text-[10px] font-mono font-normal text-[#3a5a48] border-l border-[rgba(0,255,136,0.07)] whitespace-nowrap tracking-widest uppercase`;
 
 function spsColor(score: number): CellColor {
   if (score >= 8) return "green";
@@ -70,8 +89,8 @@ function Cell({
   if (data.price === null) {
     return (
       <td className={CELL_TD}>
-        <div className={`${CELL_BOX_EMPTY} border-zinc-800 bg-zinc-900/30`}>
-          <span className="text-zinc-600 text-xs">—</span>
+        <div className={`${CELL_BOX_EMPTY} border-[rgba(255,255,255,0.05)] bg-transparent`}>
+          <span className="text-[#1e3028] text-xs">—</span>
         </div>
       </td>
     );
@@ -87,11 +106,11 @@ function Cell({
     : `Open ${gpu} spot in ${region} in ${cloudName} console`;
 
   const metricBadge = usesSps
-    ? { label: "SPS", className: "bg-sky-950/80 text-sky-400" }
+    ? { label: "SPS", className: "bg-[rgba(0,212,255,0.1)] text-[#00d4ff] border border-[rgba(0,212,255,0.2)]" }
     : cloud === "azure"
-      ? { label: "EVICT", className: "bg-violet-950/80 text-violet-400" }
+      ? { label: "EVICT", className: "bg-[rgba(255,149,0,0.1)] text-[#ff9500] border border-[rgba(255,149,0,0.2)]" }
       : evictionLabel
-        ? { label: "EVICT", className: "bg-zinc-800 text-zinc-500" }
+        ? { label: "EVICT", className: "bg-[rgba(255,255,255,0.04)] text-[#4a6a58] border border-[rgba(255,255,255,0.08)]" }
         : null;
 
   const primaryText = usesSps
@@ -103,51 +122,44 @@ function Cell({
   const showEvictionSub = usesSps && evictionLabel != null;
 
   const inner = (
-    <div
-      className={`${CELL_BOX} transition-colors ${CELL_BG[color]} ${
-        data.href ? "hover:border-zinc-500 cursor-pointer" : ""
-      }`}
-    >
-      <div className="shrink-0 text-white font-mono text-sm font-medium leading-tight tabular-nums">
+    <div className={`${CELL_BOX} ${CELL_BG[color]} ${data.href ? CELL_HOVER[color] + " cursor-pointer" : ""}`}>
+      {/* Price */}
+      <div className={`shrink-0 font-mono text-sm font-semibold leading-tight tabular-nums ${PRICE_COLOR[color]}`}>
         ${data.price.toFixed(4)}
       </div>
+
+      {/* Metric row */}
       <div className="shrink-0 flex flex-col items-center justify-center gap-0.5 min-w-0 px-0.5">
         <div className="flex items-center justify-center gap-1 w-full">
-          <span className={`inline-block w-1.5 h-1.5 shrink-0 rounded-full ${DOT[color]}`} />
+          <span className={`inline-block w-1.5 h-1.5 shrink-0 rounded-full ${DOT_COLOR[color]} ${DOT_GLOW[color]}`} />
           {metricBadge ? (
-            <span
-              className={`shrink-0 rounded px-0.5 text-[8px] font-semibold uppercase tracking-wide ${metricBadge.className}`}
-            >
+            <span className={`shrink-0 rounded px-0.5 text-[8px] font-mono font-semibold uppercase tracking-wide ${metricBadge.className}`}>
               {metricBadge.label}
             </span>
           ) : null}
-          <span
-            className={`text-[10px] leading-tight truncate ${
-              primaryMuted ? "text-zinc-600" : "text-zinc-400"
-            }`}
-          >
+          <span className={`font-mono text-[10px] leading-tight truncate ${primaryMuted ? "text-[#2d4038]" : "text-[#5e8a6e]"}`}>
             {primaryText}
           </span>
         </div>
         {showEvictionSub && (
-          <span className="text-[9px] leading-tight text-zinc-500 truncate w-full">
+          <span className="font-mono text-[9px] leading-tight text-[#2d4038] truncate w-full">
             advisor evict {evictionLabel}
           </span>
         )}
       </div>
+
+      {/* Instance label */}
       <div
-        className="shrink-0 min-h-[12px] w-full min-w-0 text-zinc-500 text-[9px] leading-tight truncate"
+        className="shrink-0 min-h-[12px] w-full min-w-0 font-mono text-[#2d4038] text-[9px] leading-tight truncate"
         title={data.instanceLabel}
       >
         {data.instanceLabel ? (
           <>
             {data.instanceLabel}
-            {data.href ? <span className="ml-0.5">↗</span> : null}
+            {data.href ? <span className="ml-0.5 text-[rgba(0,255,136,0.4)]">↗</span> : null}
           </>
         ) : (
-          <span className="invisible" aria-hidden>
-            —
-          </span>
+          <span className="invisible" aria-hidden>—</span>
         )}
       </div>
     </div>
@@ -162,7 +174,7 @@ function Cell({
           rel="noopener noreferrer"
           title={data.instanceLabel}
           aria-label={ariaLabel}
-          className="block w-full no-underline text-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 rounded"
+          className="block w-full no-underline text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-[rgba(0,255,136,0.5)] rounded"
         >
           {inner}
         </a>
@@ -196,23 +208,26 @@ export default function PriceMatrix({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-700">
+    <div className="overflow-x-auto rounded-lg border border-[rgba(0,255,136,0.1)] shadow-[0_0_40px_rgba(0,255,136,0.04)] backdrop-blur-sm">
       <table className="text-sm border-separate border-spacing-1 w-max">
         <thead>
-          <tr className="bg-zinc-900 border-b border-zinc-700">
-            <th className="px-4 py-2 text-left text-zinc-500 font-medium w-20" rowSpan={2}>
+          <tr className="bg-[rgba(2,10,7,0.95)]">
+            <th
+              className="px-4 py-2 text-left font-mono text-[10px] tracking-[0.2em] uppercase text-[#3a5a48] w-20"
+              rowSpan={2}
+            >
               GPU
             </th>
             {groups.map((g) => (
               <th
                 key={g.cloud}
                 colSpan={g.count}
-                className="px-3 py-2 text-center border-l border-zinc-700"
+                className="px-3 py-2 text-center border-l border-[rgba(0,255,136,0.07)]"
               >
-                <div className="text-xs font-semibold tracking-widest uppercase text-zinc-400">
+                <div className="font-mono text-xs font-semibold tracking-[0.2em] uppercase text-[#5e8a6e]">
                   {CLOUD_LABEL[g.cloud] ?? g.cloud}
                 </div>
-                <div className="mt-0.5 text-[10px] font-normal normal-case tracking-normal text-zinc-600">
+                <div className="mt-0.5 font-mono text-[9px] font-normal normal-case tracking-normal text-[#2d4038]">
                   {g.cloud === "aws"
                     ? AWS_METRIC_SUB[awsUsesSps ? "sps" : "eviction"]
                     : "Eviction rate"}
@@ -220,7 +235,7 @@ export default function PriceMatrix({
               </th>
             ))}
           </tr>
-          <tr className="bg-zinc-900 border-b border-zinc-700">
+          <tr className="bg-[rgba(2,10,7,0.95)]">
             {data.columns.map((col) => (
               <th key={col.key} className={COL_TH}>
                 {col.region}
@@ -232,9 +247,9 @@ export default function PriceMatrix({
           {data.rows.map((row, i) => (
             <tr
               key={row.gpu}
-              className={`border-b border-zinc-800 ${i % 2 === 0 ? "bg-zinc-950" : "bg-zinc-900/50"}`}
+              className={i % 2 === 0 ? "bg-[rgba(0,4,3,0.6)]" : "bg-[rgba(0,8,6,0.3)]"}
             >
-              <td className="px-4 py-2 font-semibold text-zinc-200 whitespace-nowrap">
+              <td className="px-4 py-2 font-mono font-semibold text-[#7aab8e] whitespace-nowrap tracking-wide text-sm">
                 {row.gpu}
               </td>
               {data.columns.map((col) => (

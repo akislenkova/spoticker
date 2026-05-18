@@ -62,8 +62,8 @@ function AuthCallbackHandler() {
   }, [router, searchParams]);
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-6">
-      <p className="text-sm text-zinc-400 animate-pulse">Signing you in…</p>
+    <main className="min-h-screen flex items-center justify-center p-6">
+      <p className="font-mono text-sm text-[#3a5a48] animate-pulse">&gt;_ Signing you in…</p>
     </main>
   );
 }
@@ -72,8 +72,8 @@ export default function AuthCallbackPage() {
   return (
     <Suspense
       fallback={
-        <main className="min-h-screen bg-zinc-950 flex items-center justify-center">
-          <p className="text-sm text-zinc-400 animate-pulse">Signing you in…</p>
+        <main className="min-h-screen flex items-center justify-center">
+          <p className="font-mono text-sm text-[#3a5a48] animate-pulse">&gt;_ Signing you in…</p>
         </main>
       }
     >

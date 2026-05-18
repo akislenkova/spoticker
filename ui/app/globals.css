@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #060d10;
+  --foreground: #c8f0dc;
 }
 
 @theme inline {
@@ -12,15 +12,102 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Keyframes ─────────────────────────────── */
+
+@keyframes gridDrift {
+  to { background-position: 44px 44px; }
 }
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scanPulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.7; }
+}
+
+/* ── Base ──────────────────────────────────── */
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Animated grid */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 255, 136, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 136, 0.022) 1px, transparent 1px);
+  background-size: 44px 44px;
+  animation: gridDrift 28s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Scanlines */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 3px,
+    rgba(0, 0, 0, 0.065) 3px,
+    rgba(0, 0, 0, 0.065) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Raise all direct children above the pseudo-element overlays */
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Utility classes ───────────────────────── */
+
+/* Neon text glow */
+.neon-glow {
+  text-shadow: 0 0 8px rgba(0, 255, 136, 0.55), 0 0 22px rgba(0, 255, 136, 0.25);
+}
+
+/* Blinking block cursor appended via ::after */
+.cursor-blink::after {
+  content: '█';
+  color: #00ff88;
+  animation: blink 1.2s step-end infinite;
+  margin-left: 2px;
+  font-size: 0.78em;
+  vertical-align: baseline;
+  opacity: 0.9;
+}
+
+/* Online status dot */
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00ff88;
+  box-shadow: 0 0 5px rgba(0, 255, 136, 0.9), 0 0 12px rgba(0, 255, 136, 0.5);
+  animation: blink 2.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* Slide-up entrance */
+.animate-fade-in-up {
+  animation: fadeInUp 0.45s ease-out both;
 }

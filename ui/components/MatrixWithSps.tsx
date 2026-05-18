@@ -52,7 +52,6 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
 
   useEffect(() => {
     if (!awsStatus.loading && !awsStatus.connected) return;
-
     if (awsStatus.loading || !awsStatus.connected) return;
 
     setSpsLoading(true);
@@ -88,16 +87,16 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
       <MatrixLegend awsMetric={awsMetric} />
 
       {!awsStatus.loading && awsStatus.connected && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-[#2d4038]">
           {spsLoading ? (
-            <span>Loading Spot Placement Scores…</span>
+            <span className="text-[#3a5a48]">Loading Spot Placement Scores…</span>
           ) : awsUsesSps ? (
-            <span className="text-sky-400/90">
+            <span className="text-[#00d4ff]">
               AWS connected · SPS for {Object.keys(spsScores).length} region×instance pairs
               {awsStatus.accountId ? ` · ${awsStatus.accountId}` : ""}
             </span>
           ) : (
-            <span className="text-red-400" title={spsError ?? undefined}>
+            <span className="text-[#d07080]" title={spsError ?? undefined}>
               {spsError ?? "SPS fetch failed — showing advisor eviction rates instead"}
             </span>
           )}
@@ -105,23 +104,27 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
             type="button"
             onClick={handleDisconnect}
             disabled={disconnecting}
-            className="text-zinc-500 hover:text-zinc-300 underline disabled:opacity-40"
+            className="font-mono text-[11px] text-[#2d4038] hover:text-[rgba(0,255,136,0.6)] underline disabled:opacity-40 transition-colors"
           >
-            {disconnecting ? "Disconnecting…" : "Disconnect AWS"}
+            {disconnecting ? "Disconnecting…" : "// disconnect aws"}
           </button>
         </div>
       )}
+
       {!awsStatus.loading && !awsStatus.connected && (
-        <div className="text-xs text-zinc-600 space-y-1">
+        <div className="font-mono text-[11px] text-[#2d4038] space-y-1">
           <p>
-            <Link href="/connect" className="underline hover:text-zinc-400">
+            <Link href="/connect" className="text-[rgba(0,255,136,0.5)] hover:text-[rgba(0,255,136,0.8)] underline transition-colors">
               Connect AWS
             </Link>{" "}
             for Spot Placement Scores (otherwise AWS cells use advisor eviction %).
           </p>
-          {spsError ? <p className="text-amber-600/90">{spsError}</p> : null}
+          {spsError ? (
+            <p className="text-[rgba(255,149,0,0.7)]">{spsError}</p>
+          ) : null}
         </div>
       )}
+
       <PriceMatrix data={data} spsScores={spsScores} awsUsesSps={awsUsesSps} />
     </div>
   );

@@ -21,20 +21,24 @@ export default function CopyField({
   }
 
   return (
-    <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-3 space-y-2">
+    <div className="rounded border border-[rgba(0,255,136,0.1)] bg-[rgba(0,4,3,0.7)] p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-zinc-500 uppercase tracking-wider">{label}</p>
+        <p className="font-mono text-[10px] text-[#2d4038] uppercase tracking-[0.2em]">{label}</p>
         <button
           type="button"
           onClick={copy}
           disabled={!value}
-          className="text-xs px-2 py-1 rounded border border-zinc-600 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 disabled:opacity-40"
+          className={`font-mono text-[10px] px-2 py-1 rounded border transition-all disabled:opacity-40 ${
+            copied
+              ? "border-[rgba(0,255,136,0.35)] bg-[rgba(0,255,136,0.1)] text-[#00ff88]"
+              : "border-[rgba(0,255,136,0.12)] text-[#3a5a48] hover:text-[rgba(0,255,136,0.7)] hover:border-[rgba(0,255,136,0.25)]"
+          }`}
         >
-          {copied ? "Copied" : "Copy"}
+          {copied ? "✓ Copied" : "Copy"}
         </button>
       </div>
-      <code className="block text-sm text-emerald-400 break-all font-mono">{value || "—"}</code>
-      {hint && <p className="text-xs text-zinc-600">{hint}</p>}
+      <code className="block font-mono text-sm text-[#00ff88] break-all">{value || "—"}</code>
+      {hint && <p className="font-mono text-[10px] text-[#1e3028]">{hint}</p>}
     </div>
   );
 }

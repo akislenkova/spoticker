@@ -46,15 +46,17 @@ function AwsGuideStep({
   return (
     <li className="flex gap-3">
       <span
-        className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-          done ? "bg-emerald-900 text-emerald-400" : "bg-zinc-800 text-zinc-400"
+        className={`shrink-0 w-6 h-6 rounded border flex items-center justify-center font-mono text-xs font-medium ${
+          done
+            ? "border-[rgba(0,255,136,0.3)] bg-[rgba(0,255,136,0.08)] text-[#00ff88]"
+            : "border-[rgba(0,255,136,0.1)] bg-[rgba(0,4,3,0.5)] text-[#3a5a48]"
         }`}
       >
         {done ? "✓" : n}
       </span>
       <div className="space-y-2 pb-4 min-w-0 flex-1">
-        <p className="text-sm font-medium text-zinc-200">{title}</p>
-        <div className="text-sm text-zinc-500 space-y-2">{children}</div>
+        <p className="font-mono text-sm font-medium text-[#c8f0dc] tracking-wide">{title}</p>
+        <div className="font-mono text-sm text-[#3a5a48] space-y-2">{children}</div>
       </div>
     </li>
   );
@@ -142,37 +144,40 @@ export default function ConnectPage() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-6">
+    <main className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-xl space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Connect AWS</h1>
-          <p className="text-zinc-500 text-sm mt-1">
+        <div className="animate-fade-in-up space-y-1">
+          <p className="font-mono text-[10px] tracking-[0.25em] text-[rgba(0,255,136,0.4)] uppercase">
+            // AWS Integration
+          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-[#c8f0dc] cursor-blink">Connect AWS</h1>
+          <p className="font-mono text-[#3a5a48] text-sm mt-1">
             Deploy a read-only IAM role via CloudFormation — your AWS keys never leave AWS.
           </p>
         </div>
 
         {signedIn === null && (
-          <p className="text-sm text-zinc-500 animate-pulse">Loading…</p>
+          <p className="font-mono text-sm text-[#2d4038] animate-pulse">Loading…</p>
         )}
 
         {signedIn === false && <ConnectEmailStep />}
 
         {signedIn === true && step === "init" && (
           <div className="space-y-4">
-            <p className="text-sm text-zinc-400">
+            <p className="font-mono text-sm text-[#4a6a58]">
               We generate a unique External ID, walk you through AWS CloudFormation, then verify
               access. About 2–3 minutes.
             </p>
             {serverConfigured === false && (
-              <div className="text-sm text-amber-500 rounded-lg border border-amber-800/40 bg-amber-950/20 p-3 space-y-2">
-                <p className="font-medium text-amber-200">Server AWS keys missing</p>
-                <p>
-                  Add <code className="text-amber-100">SPOTTICKER_AWS_ACCESS_KEY_ID</code> and{" "}
-                  <code className="text-amber-100">SPOTTICKER_AWS_SECRET_ACCESS_KEY</code> to{" "}
-                  <code className="text-amber-100">ui/.env.local</code>, then restart{" "}
-                  <code className="text-amber-100">npm run dev</code>.
+              <div className="font-mono text-sm rounded border border-[rgba(255,149,0,0.25)] bg-[rgba(255,149,0,0.06)] p-3 space-y-2">
+                <p className="font-medium text-[#ff9500]">Server AWS keys missing</p>
+                <p className="text-[#4a6a58]">
+                  Add <code className="text-[#c8f0dc]">SPOTTICKER_AWS_ACCESS_KEY_ID</code> and{" "}
+                  <code className="text-[#c8f0dc]">SPOTTICKER_AWS_SECRET_ACCESS_KEY</code> to{" "}
+                  <code className="text-[#c8f0dc]">ui/.env.local</code>, then restart{" "}
+                  <code className="text-[#c8f0dc]">npm run dev</code>.
                 </p>
-                <p className="text-xs text-amber-200/80">
+                <p className="text-xs text-[#2d4038]">
                   See <code>aws/iam/README.md</code> in the repo for IAM setup.
                 </p>
               </div>
@@ -180,15 +185,15 @@ export default function ConnectPage() {
             <button
               onClick={handleStart}
               disabled={serverConfigured === false}
-              className="w-full py-2.5 rounded-lg bg-white text-black font-medium hover:bg-zinc-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full py-2.5 rounded border border-[rgba(0,255,136,0.3)] bg-[rgba(0,255,136,0.08)] font-mono font-medium text-[#00ff88] hover:bg-[rgba(0,255,136,0.14)] hover:border-[rgba(0,255,136,0.5)] hover:shadow-[0_0_16px_rgba(0,255,136,0.12)] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Generate External ID & continue
+              &gt; Generate External ID &amp; continue
             </button>
           </div>
         )}
 
         {signedIn === true && step === "launching" && (
-          <p className="text-zinc-400 text-sm animate-pulse">Generating your External ID…</p>
+          <p className="font-mono text-sm text-[#3a5a48] animate-pulse">&gt;_ Generating your External ID…</p>
         )}
 
         {signedIn === true && step === "pasting" && (
@@ -208,40 +213,40 @@ export default function ConnectPage() {
                   <a
                     href={TEMPLATE_DOWNLOAD}
                     download="spotticker-role.yaml"
-                    className="flex-1 text-center py-2.5 rounded-lg border border-zinc-600 text-sm font-medium hover:border-zinc-400 transition-colors"
+                    className="flex-1 text-center py-2.5 rounded border border-[rgba(0,255,136,0.15)] font-mono text-sm font-medium text-[#4a6a58] hover:border-[rgba(0,255,136,0.3)] hover:text-[#7aab8e] transition-all"
                   >
                     Download template
                   </a>
                 </div>
-                <div className="rounded-md border border-zinc-700 bg-zinc-900/80 p-3 space-y-2 text-xs text-zinc-400">
-                  <p className="text-zinc-300 font-medium">Upload tips (same for every user)</p>
+                <div className="rounded border border-[rgba(0,255,136,0.08)] bg-[rgba(0,4,3,0.7)] p-3 space-y-2 font-mono text-xs text-[#3a5a48]">
+                  <p className="text-[#7aab8e] font-medium tracking-wide">// upload tips</p>
                   <ul className="list-disc list-inside space-y-1">
                     <li>
-                      Use <strong className="text-zinc-300">Download template</strong>, then in AWS{" "}
-                      <strong className="text-zinc-300">Choose file</strong> → pick{" "}
-                      <code className="text-emerald-400">spotticker-role.yaml</code> from Downloads.
+                      Use <strong className="text-[#7aab8e]">Download template</strong>, then in AWS{" "}
+                      <strong className="text-[#7aab8e]">Choose file</strong> → pick{" "}
+                      <code className="text-[#00ff88]">spotticker-role.yaml</code> from Downloads.
                     </li>
                     <li>
-                      If the name ends in <code className="text-zinc-400">.yaml.txt</code>, rename to{" "}
-                      <code className="text-zinc-400">.yaml</code>.
+                      If the name ends in <code className="text-[#4a6a58]">.yaml.txt</code>, rename to{" "}
+                      <code className="text-[#4a6a58]">.yaml</code>.
                     </li>
                     <li>
                       Developers: in your clone, the file is{" "}
-                      <code className="text-zinc-400">aws/cloudformation/spotticker-role.yaml</code>.
+                      <code className="text-[#4a6a58]">aws/cloudformation/spotticker-role.yaml</code>.
                     </li>
                     <li>
-                      Wait until the filename appears, then click <strong className="text-zinc-300">Next</strong>.
+                      Wait until the filename appears, then click <strong className="text-[#7aab8e]">Next</strong>.
                     </li>
                   </ul>
                 </div>
                 {templateUrlReady && (
-                  <p className="text-xs text-zinc-600">
+                  <p className="font-mono text-[10px] text-[#1e3028]">
                     Or use{" "}
                     <a
                       href={cfQuickCreateUrl(externalId)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="underline hover:text-zinc-400"
+                      className="text-[rgba(0,255,136,0.45)] hover:text-[rgba(0,255,136,0.8)] underline transition-colors"
                     >
                       one-click deploy
                     </a>{" "}
@@ -261,20 +266,20 @@ export default function ConnectPage() {
                   value={SPOTTICKER_ROLE_ARN}
                   hint="Must be an ARN that exists in Spoticker’s AWS account (601883338057). Use root unless SpottickerAssumeRole is created."
                 />
-                <p className="text-xs text-zinc-600">
-                  Your error means <code className="text-zinc-400">role/SpottickerAssumeRole</code> does not exist yet.
+                <p className="font-mono text-[10px] text-[#1e3028]">
+                  Your error means <code className="text-[#3a5a48]">role/SpottickerAssumeRole</code> does not exist yet.
                   Use the root ARN above. Delete the failed stack, then create a new one.
                 </p>
               </AwsGuideStep>
 
               <AwsGuideStep n={3} title="Deploy, then paste RoleArn here">
                 <p>
-                  Wait until stack status is <strong className="text-zinc-300">CREATE_COMPLETE</strong>.
-                  Open the <strong className="text-zinc-300">Outputs</strong> tab and copy{" "}
-                  <strong className="text-zinc-300">RoleArn</strong>.
+                  Wait until stack status is <strong className="text-[#7aab8e]">CREATE_COMPLETE</strong>.
+                  Open the <strong className="text-[#7aab8e]">Outputs</strong> tab and copy{" "}
+                  <strong className="text-[#7aab8e]">RoleArn</strong>.
                 </p>
                 <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 uppercase tracking-wider">
+                  <label className="font-mono text-[10px] text-[#2d4038] uppercase tracking-[0.2em]">
                     RoleArn from CloudFormation Outputs
                   </label>
                   <input
@@ -282,7 +287,7 @@ export default function ConnectPage() {
                     value={roleArn}
                     onChange={(e) => setRoleArn(e.target.value)}
                     placeholder="arn:aws:iam::123456789012:role/SpottickerReadOnly"
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-zinc-400"
+                    className="w-full bg-[rgba(0,4,3,0.8)] border border-[rgba(0,255,136,0.12)] rounded px-3 py-2 font-mono text-sm text-[#c8f0dc] placeholder:text-[#1e3028] focus:outline-none focus:border-[rgba(0,255,136,0.35)] focus:shadow-[0_0_12px_rgba(0,255,136,0.08)] transition-all"
                   />
                 </div>
               </AwsGuideStep>
@@ -291,25 +296,31 @@ export default function ConnectPage() {
             <button
               onClick={handleVerify}
               disabled={!roleArn.startsWith("arn:aws:iam::")}
-              className="w-full py-2.5 rounded-lg bg-white text-black font-medium hover:bg-zinc-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full py-2.5 rounded border border-[rgba(0,255,136,0.3)] bg-[rgba(0,255,136,0.08)] font-mono font-medium text-[#00ff88] hover:bg-[rgba(0,255,136,0.14)] hover:border-[rgba(0,255,136,0.5)] hover:shadow-[0_0_16px_rgba(0,255,136,0.12)] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Verify connection
+              &gt; Verify connection
             </button>
           </div>
         )}
 
         {signedIn === true && step === "verifying" && (
-          <p className="text-zinc-400 text-sm animate-pulse">Verifying role in your AWS account…</p>
+          <p className="font-mono text-sm text-[#3a5a48] animate-pulse">
+            &gt;_ Verifying role in your AWS account…
+          </p>
         )}
 
         {signedIn === true && step === "error" && (
-          <div className="rounded-lg border border-red-800 bg-red-900/30 p-4 space-y-3">
-            <p className="text-red-400 font-medium">Connection failed</p>
-            <p className="text-sm text-zinc-400">{errorMsg}</p>
+          <div className="relative rounded border border-[rgba(255,50,80,0.2)] bg-[rgba(255,50,80,0.04)] p-4 space-y-3">
+            <span className="absolute top-0 left-0 w-3 h-3 border-t border-l border-[rgba(255,50,80,0.35)] pointer-events-none" />
+            <span className="absolute top-0 right-0 w-3 h-3 border-t border-r border-[rgba(255,50,80,0.35)] pointer-events-none" />
+            <span className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-[rgba(255,50,80,0.35)] pointer-events-none" />
+            <span className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-[rgba(255,50,80,0.35)] pointer-events-none" />
+            <p className="font-mono font-medium text-[#ff4060]">// Connection failed</p>
+            <p className="font-mono text-sm text-[#4a6a58]">{errorMsg}</p>
             {errorHint ? (
-              <p className="text-sm text-amber-200/90">{errorHint}</p>
+              <p className="font-mono text-sm text-[rgba(255,149,0,0.8)]">{errorHint}</p>
             ) : null}
-            <p className="text-xs text-zinc-500">
+            <p className="font-mono text-xs text-[#2d4038]">
               Common fixes: ExternalId in AWS must match exactly · stack must be CREATE_COMPLETE ·
               RoleArn must be from Outputs (not typed manually wrong).
             </p>
@@ -321,13 +332,13 @@ export default function ConnectPage() {
                   if (connectionId && externalId) setStep("pasting");
                   else setStep("init");
                 }}
-                className="text-sm text-zinc-400 hover:text-zinc-200 underline"
+                className="font-mono text-sm text-[#3a5a48] hover:text-[rgba(0,255,136,0.7)] underline transition-colors"
               >
                 Try again
               </button>
               <button
                 onClick={() => setStep("init")}
-                className="text-sm text-zinc-400 hover:text-zinc-200 underline"
+                className="font-mono text-sm text-[#3a5a48] hover:text-[rgba(0,255,136,0.7)] underline transition-colors"
               >
                 Start over
               </button>
