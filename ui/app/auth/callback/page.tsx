@@ -54,7 +54,20 @@ function AuthCallbackHandler() {
         return;
       }
 
-      router.replace(next);
+      let destination = next;
+      if (next === "/connect") {
+        try {
+          const status = await fetch("/api/aws/status", { credentials: "include" });
+          if (status.ok) {
+            const data = await status.json();
+            if (data.connected) destination = "/";
+          }
+        } catch {
+          /* keep /connect */
+        }
+      }
+
+      router.replace(destination);
       router.refresh();
     }
 

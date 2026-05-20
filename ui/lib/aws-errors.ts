@@ -41,7 +41,7 @@ export function formatAwsError(err: unknown): { message: string; hint?: string }
   if (text.includes("accessdenied") || text.includes("not authorized")) {
     return {
       message: "AWS denied AssumeRole.",
-      hint: "In CloudFormation, SpottickerRoleArn must be arn:aws:iam::601883338057:root (or SpottickerAssumeRole if created). ExternalId must match Spoticker exactly.",
+      hint: "In CloudFormation, SpotickerRoleArn must be arn:aws:iam::601883338057:root (or SpotickerAssumeRole if created). ExternalId must match Spoticker exactly.",
     };
   }
 
@@ -55,7 +55,7 @@ export function formatAwsError(err: unknown): { message: string; hint?: string }
   if (text.includes("malformedpolicydocument") || text.includes("invalid principal")) {
     return {
       message: "CloudFormation trust policy is invalid.",
-      hint: "Use arn:aws:iam::601883338057:root for SpottickerRoleArn unless role/SpottickerAssumeRole exists in that account.",
+      hint: "Use arn:aws:iam::601883338057:root for SpotickerRoleArn unless role/SpotickerAssumeRole exists in that account.",
     };
   }
 

@@ -29,7 +29,7 @@ On **Vercel**, add the same `SPOTTICKER_AWS_*` vars (not `NEXT_PUBLIC_`).
 
 1. Sign in at `/login`
 2. Open `/connect` → Generate External ID
-3. Deploy [`../cloudformation/spotticker-role.yaml`](../cloudformation/spotticker-role.yaml) in **your** AWS account
+3. Deploy [`../cloudformation/spoticker-role.yaml`](../cloudformation/spoticker-role.yaml) in **your** AWS account
 4. Parameters:
    - **SpottickerRoleArn:** `arn:aws:iam::601883338057:root`
    - **ExternalId:** paste from Spoticker exactly

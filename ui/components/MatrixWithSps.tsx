@@ -5,14 +5,43 @@ import Link from "next/link";
 import MatrixLegend from "./MatrixLegend";
 import PriceMatrix from "./PriceMatrix";
 import { MatrixData } from "@/lib/matrix";
+import { createClient } from "@/lib/supabase/browser";
 
 type AwsStatus =
   | { loading: true }
-  | { loading: false; connected: false }
-  | { loading: false; connected: true; accountId?: string | null };
+  | { loading: false; authenticated: false }
+  | {
+      loading: false;
+      authenticated: true;
+      connected: false;
+      email?: string | null;
+      lastError?: string | null;
+    }
+  | {
+      loading: false;
+      authenticated: true;
+      connected: true;
+      accountId?: string | null;
+      email?: string | null;
+    };
 
-export default function MatrixWithSps({ data }: { data: MatrixData }) {
+export default function MatrixWithSps({
+  data,
+  sessionEmail: sessionEmailFromServer = null,
+}: {
+  data: MatrixData;
+  /** Hint from server; client refresh below is authoritative for sign-in UI. */
+  sessionEmail?: string | null;
+}) {
+  const [sessionEmail, setSessionEmail] = useState<string | null>(sessionEmailFromServer);
+  const isSignedIn = sessionEmail != null;
   const [awsStatus, setAwsStatus] = useState<AwsStatus>({ loading: true });
+
+  useEffect(() => {
+    createClient()
+      .auth.getUser()
+      .then(({ data: { user } }) => setSessionEmail(user?.email ?? null));
+  }, []);
   const [spsScores, setSpsScores] = useState<Record<string, number>>({});
   const [spsLoading, setSpsLoading] = useState(false);
   const [spsError, setSpsError] = useState<string | null>(null);
@@ -23,7 +52,7 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
     try {
       await fetch("/api/aws/disconnect", { method: "POST", credentials: "include" });
       setSpsScores({});
-      setAwsStatus({ loading: false, connected: false });
+      setAwsStatus({ loading: false, authenticated: true, connected: false });
     } finally {
       setDisconnecting(false);
     }
@@ -31,28 +60,61 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
 
   useEffect(() => {
     fetch("/api/aws/status", { credentials: "include" })
-      .then((r) => {
-        if (r.status === 401) return { connected: false, serverConfigured: true };
-        return r.json();
+      .then(async (r) => {
+        if (r.status === 401) {
+          return { authenticated: false as const };
+        }
+        const d = await r.json();
+        return { authenticated: true as const, ...d };
       })
       .then((d) => {
+        if (!d.authenticated) {
+          setAwsStatus({
+            loading: false,
+            authenticated: isSignedIn,
+            connected: false,
+            email: sessionEmail,
+          });
+          return;
+        }
         if (d.connected) {
-          setAwsStatus({ loading: false, connected: true, accountId: d.accountId });
+          setAwsStatus({
+            loading: false,
+            authenticated: true,
+            connected: true,
+            accountId: d.accountId,
+            email: d.email,
+          });
         } else {
-          setAwsStatus({ loading: false, connected: false });
+          setAwsStatus({
+            loading: false,
+            authenticated: true,
+            connected: false,
+            email: d.email,
+            lastError: d.lastError,
+          });
           if (d.serverConfigured === false) {
             setSpsError("Server AWS keys not configured — add SPOTTICKER_AWS_* to ui/.env.local");
           } else if (d.lastError) {
             setSpsError(d.lastError);
+          } else {
+            setSpsError(null);
           }
         }
       })
-      .catch(() => setAwsStatus({ loading: false, connected: false }));
-  }, []);
+      .catch(() =>
+        setAwsStatus({
+          loading: false,
+          authenticated: isSignedIn,
+          connected: false,
+          email: sessionEmail,
+        })
+      );
+  }, [isSignedIn, sessionEmail]);
 
   useEffect(() => {
-    if (!awsStatus.loading && !awsStatus.connected) return;
-    if (awsStatus.loading || !awsStatus.connected) return;
+    if (awsStatus.loading) return;
+    if (!("connected" in awsStatus) || !awsStatus.connected) return;
 
     setSpsLoading(true);
     setSpsError(null);
@@ -82,11 +144,20 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
       ? "sps"
       : "eviction";
 
+  const awsConnected =
+    !awsStatus.loading && "connected" in awsStatus && awsStatus.connected;
+  const displayEmail =
+    sessionEmail ??
+    (awsStatus.loading || !("email" in awsStatus) ? null : awsStatus.email);
+  const showSignedIn =
+    isSignedIn ||
+    (!awsStatus.loading && "authenticated" in awsStatus && awsStatus.authenticated);
+
   return (
     <div className="space-y-3">
       <MatrixLegend awsMetric={awsMetric} />
 
-      {!awsStatus.loading && awsStatus.connected && (
+      {awsConnected && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-[#2d4038]">
           {spsLoading ? (
             <span className="text-[#3a5a48]">Loading Spot Placement Scores…</span>
@@ -111,14 +182,39 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
         </div>
       )}
 
-      {!awsStatus.loading && !awsStatus.connected && (
+      {!awsStatus.loading && !awsConnected && (
         <div className="font-mono text-[11px] text-[#2d4038] space-y-1">
-          <p>
-            <Link href="/connect" className="text-[rgba(0,255,136,0.5)] hover:text-[rgba(0,255,136,0.8)] underline transition-colors">
-              Connect AWS
-            </Link>{" "}
-            for Spot Placement Scores (otherwise AWS cells use advisor eviction %).
-          </p>
+          {showSignedIn ? (
+            <p>
+              <span className="text-[#4a6a58]">
+                Signed in
+                {displayEmail ? (
+                  <>
+                    {" "}
+                    as <span className="text-[#7aab8e]">{displayEmail}</span>
+                  </>
+                ) : null}
+                .
+              </span>{" "}
+              <Link
+                href="/connect"
+                className="text-[rgba(0,255,136,0.5)] hover:text-[rgba(0,255,136,0.8)] underline transition-colors"
+              >
+                Connect AWS
+              </Link>{" "}
+              for Spot Placement Scores (otherwise AWS cells use advisor eviction %).
+            </p>
+          ) : (
+            <p>
+              <Link
+                href="/connect"
+                className="text-[rgba(0,255,136,0.5)] hover:text-[rgba(0,255,136,0.8)] underline transition-colors"
+              >
+                Sign in
+              </Link>{" "}
+              and connect AWS for Spot Placement Scores (otherwise AWS cells use advisor eviction %).
+            </p>
+          )}
           {spsError ? (
             <p className="text-[rgba(255,149,0,0.7)]">{spsError}</p>
           ) : null}

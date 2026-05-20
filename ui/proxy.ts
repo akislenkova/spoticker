@@ -9,6 +9,7 @@ export async function proxy(request: NextRequest) {
 // /api/aws/config and /api/aws/cfn-template are public (handled in updateSession).
 export const config = {
   matcher: [
+    "/",
     "/connect",
     "/connect/:path*",
     "/login",

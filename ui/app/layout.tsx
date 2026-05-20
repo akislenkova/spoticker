@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   description: "GPU spot pricing and eviction rates across AWS, Azure, and GCP",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{
