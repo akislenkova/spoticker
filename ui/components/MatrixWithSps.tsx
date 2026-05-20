@@ -69,12 +69,16 @@ export default function MatrixWithSps({
       })
       .then((d) => {
         if (!d.authenticated) {
-          setAwsStatus({
-            loading: false,
-            authenticated: isSignedIn,
-            connected: false,
-            email: sessionEmail,
-          });
+          setAwsStatus(
+            isSignedIn
+              ? {
+                  loading: false,
+                  authenticated: true,
+                  connected: false,
+                  email: sessionEmail,
+                }
+              : { loading: false, authenticated: false }
+          );
           return;
         }
         if (d.connected) {
@@ -103,12 +107,16 @@ export default function MatrixWithSps({
         }
       })
       .catch(() =>
-        setAwsStatus({
-          loading: false,
-          authenticated: isSignedIn,
-          connected: false,
-          email: sessionEmail,
-        })
+        setAwsStatus(
+          isSignedIn
+            ? {
+                loading: false,
+                authenticated: true,
+                connected: false,
+                email: sessionEmail,
+              }
+            : { loading: false, authenticated: false }
+        )
       );
   }, [isSignedIn, sessionEmail]);
 
