@@ -35,8 +35,6 @@ export async function GET() {
   if (!conn || conn.status !== "connected") {
     const lastError = await getLatestErrorForUser(user.id);
     return NextResponse.json({
-      authenticated: true,
-      email: user.email,
       connected: false,
       serverConfigured: isSpottickerAwsConfigured(),
       lastError,
@@ -44,8 +42,6 @@ export async function GET() {
   }
 
   const response = NextResponse.json({
-    authenticated: true,
-    email: user.email,
     connected: true,
     connectionId: conn.id,
     accountId: conn.account_id,

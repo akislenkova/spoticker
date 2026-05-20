@@ -20,13 +20,13 @@ const templateUrlReady =
 const CF_CREATE_STACK_URL = `https://${AWS_REGION}.console.aws.amazon.com/cloudformation/home?region=${AWS_REGION}#/stacks/create/template`;
 
 const TEMPLATE_DOWNLOAD = "/api/aws/cfn-template";
-type Step = "init" | "launching" | "pasting" | "verifying" | "success" | "error";
+type Step = "init" | "launching" | "pasting" | "verifying" | "error";
 
 function cfQuickCreateUrl(externalId: string) {
   const params = new URLSearchParams({
     templateURL: TEMPLATE_URL,
-    stackName: "SpotickerReadOnly",
-    param_SpotickerRoleArn: SPOTTICKER_ROLE_ARN,
+    stackName: "SpottickerReadOnly",
+    param_SpottickerRoleArn: SPOTTICKER_ROLE_ARN,
     param_ExternalId: externalId,
   });
   return `https://console.aws.amazon.com/cloudformation/home#/stacks/create/review?${params}`;
@@ -72,37 +72,12 @@ export default function ConnectPage() {
   const [awsStarted, setAwsStarted] = useState(false);
   const [serverConfigured, setServerConfigured] = useState<boolean | null>(null);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [alreadyConnected, setAlreadyConnected] = useState(false);
 
   useEffect(() => {
     createClient()
       .auth.getUser()
-      .then(({ data: { user } }) => {
-        setSignedIn(!!user);
-        setUserEmail(user?.email ?? null);
-      });
+      .then(({ data: { user } }) => setSignedIn(!!user));
   }, []);
-
-  useEffect(() => {
-    if (signedIn !== true) return;
-
-    let cancelled = false;
-    fetch("/api/aws/status", { credentials: "include" })
-      .then(async (r) => {
-        if (!r.ok || cancelled) return;
-        const data = await r.json();
-        if (data.connected) {
-          setAlreadyConnected(true);
-          window.location.replace("/");
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-    };
-  }, [signedIn]);
 
   useEffect(() => {
     fetch("/api/aws/config", { credentials: "include" })
@@ -165,10 +140,7 @@ export default function ConnectPage() {
       setStep("error");
       return;
     }
-    setStep("success");
-    window.setTimeout(() => {
-      window.location.href = "/";
-    }, 1600);
+    window.location.href = "/";
   }
 
   return (
@@ -184,27 +156,17 @@ export default function ConnectPage() {
           </p>
         </div>
 
-        {(signedIn === null || alreadyConnected) && (
-          <p className="font-mono text-sm text-[#2d4038] animate-pulse">
-            {alreadyConnected ? "&gt;_ AWS already connected — opening Spoticker…" : "Loading…"}
-          </p>
+        {signedIn === null && (
+          <p className="font-mono text-sm text-[#2d4038] animate-pulse">Loading…</p>
         )}
 
-        {signedIn === false && !alreadyConnected && <ConnectEmailStep />}
+        {signedIn === false && <ConnectEmailStep />}
 
-        {signedIn === true && !alreadyConnected && step === "init" && (
+        {signedIn === true && step === "init" && (
           <div className="space-y-4">
-            {userEmail && (
-              <div className="rounded border border-[rgba(0,255,136,0.15)] bg-[rgba(0,255,136,0.05)] px-4 py-3 space-y-1">
-                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#2d4038]">
-                  Signed in
-                </p>
-                <p className="font-mono text-sm text-[#00ff88]">{userEmail}</p>
-              </div>
-            )}
             <p className="font-mono text-sm text-[#4a6a58]">
-              Next: we generate a unique External ID, walk you through AWS CloudFormation, then
-              verify access. About 2–3 minutes.
+              We generate a unique External ID, walk you through AWS CloudFormation, then verify
+              access. About 2–3 minutes.
             </p>
             {serverConfigured === false && (
               <div className="font-mono text-sm rounded border border-[rgba(255,149,0,0.25)] bg-[rgba(255,149,0,0.06)] p-3 space-y-2">
@@ -230,11 +192,11 @@ export default function ConnectPage() {
           </div>
         )}
 
-        {signedIn === true && !alreadyConnected && step === "launching" && (
+        {signedIn === true && step === "launching" && (
           <p className="font-mono text-sm text-[#3a5a48] animate-pulse">&gt;_ Generating your External ID…</p>
         )}
 
-        {signedIn === true && !alreadyConnected && step === "pasting" && (
+        {signedIn === true && step === "pasting" && (
           <div className="space-y-5">
             <ol className="list-none space-y-0">
               <AwsGuideStep n={1} title="Open AWS & upload the template" done={awsStarted}>
@@ -250,7 +212,7 @@ export default function ConnectPage() {
                   </a>
                   <a
                     href={TEMPLATE_DOWNLOAD}
-                    download="spoticker-role.yaml"
+                    download="spotticker-role.yaml"
                     className="flex-1 text-center py-2.5 rounded border border-[rgba(0,255,136,0.15)] font-mono text-sm font-medium text-[#4a6a58] hover:border-[rgba(0,255,136,0.3)] hover:text-[#7aab8e] transition-all"
                   >
                     Download template
@@ -262,7 +224,7 @@ export default function ConnectPage() {
                     <li>
                       Use <strong className="text-[#7aab8e]">Download template</strong>, then in AWS{" "}
                       <strong className="text-[#7aab8e]">Choose file</strong> → pick{" "}
-                      <code className="text-[#00ff88]">spoticker-role.yaml</code> from Downloads.
+                      <code className="text-[#00ff88]">spotticker-role.yaml</code> from Downloads.
                     </li>
                     <li>
                       If the name ends in <code className="text-[#4a6a58]">.yaml.txt</code>, rename to{" "}
@@ -270,7 +232,7 @@ export default function ConnectPage() {
                     </li>
                     <li>
                       Developers: in your clone, the file is{" "}
-                      <code className="text-[#4a6a58]">aws/cloudformation/spoticker-role.yaml</code>.
+                      <code className="text-[#4a6a58]">aws/cloudformation/spotticker-role.yaml</code>.
                     </li>
                     <li>
                       Wait until the filename appears, then click <strong className="text-[#7aab8e]">Next</strong>.
@@ -300,12 +262,12 @@ export default function ConnectPage() {
                   hint="Paste into the ExternalId field in CloudFormation. Already saved in Spoticker."
                 />
                 <CopyField
-                  label="SpotickerRoleArn"
+                  label="SpottickerRoleArn — paste this in AWS"
                   value={SPOTTICKER_ROLE_ARN}
-                  hint="CloudFormation parameter name is exactly SpotickerRoleArn (one “t” in Spoticker). Paste into that field in AWS. Must exist in account 601883338057 — use root ARN unless SpotickerAssumeRole is created."
+                  hint="Must be an ARN that exists in Spoticker’s AWS account (601883338057). Use root unless SpottickerAssumeRole is created."
                 />
                 <p className="font-mono text-[10px] text-[#1e3028]">
-                  Your error means <code className="text-[#3a5a48]">role/SpotickerAssumeRole</code> does not exist yet.
+                  Your error means <code className="text-[#3a5a48]">role/SpottickerAssumeRole</code> does not exist yet.
                   Use the root ARN above. Delete the failed stack, then create a new one.
                 </p>
               </AwsGuideStep>
@@ -324,7 +286,7 @@ export default function ConnectPage() {
                     type="text"
                     value={roleArn}
                     onChange={(e) => setRoleArn(e.target.value)}
-                    placeholder="arn:aws:iam::123456789012:role/SpotickerReadOnly"
+                    placeholder="arn:aws:iam::123456789012:role/SpottickerReadOnly"
                     className="w-full bg-[rgba(0,4,3,0.8)] border border-[rgba(0,255,136,0.12)] rounded px-3 py-2 font-mono text-sm text-[#c8f0dc] placeholder:text-[#1e3028] focus:outline-none focus:border-[rgba(0,255,136,0.35)] focus:shadow-[0_0_12px_rgba(0,255,136,0.08)] transition-all"
                   />
                 </div>
@@ -341,20 +303,13 @@ export default function ConnectPage() {
           </div>
         )}
 
-        {signedIn === true && !alreadyConnected && step === "verifying" && (
+        {signedIn === true && step === "verifying" && (
           <p className="font-mono text-sm text-[#3a5a48] animate-pulse">
             &gt;_ Verifying role in your AWS account…
           </p>
         )}
 
-        {signedIn === true && !alreadyConnected && step === "success" && (
-          <div className="rounded border border-[rgba(0,255,136,0.2)] bg-[rgba(0,255,136,0.06)] px-4 py-5 space-y-2 text-center">
-            <p className="font-mono text-lg text-[#00ff88]">✓ AWS connected</p>
-            <p className="font-mono text-sm text-[#4a6a58]">Opening the Spoticker matrix…</p>
-          </div>
-        )}
-
-        {signedIn === true && !alreadyConnected && step === "error" && (
+        {signedIn === true && step === "error" && (
           <div className="relative rounded border border-[rgba(255,50,80,0.2)] bg-[rgba(255,50,80,0.04)] p-4 space-y-3">
             <span className="absolute top-0 left-0 w-3 h-3 border-t border-l border-[rgba(255,50,80,0.35)] pointer-events-none" />
             <span className="absolute top-0 right-0 w-3 h-3 border-t border-r border-[rgba(255,50,80,0.35)] pointer-events-none" />

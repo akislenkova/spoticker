@@ -39,34 +39,16 @@ function ConnectEmailForm() {
         error.message.toLowerCase().includes("rate") ||
         error.message.toLowerCase().includes("too many") ||
         error.status === 429;
-      if (isRateLimit) {
-        setMessage("Please wait a minute before requesting a new link.");
-      } else if (
-        error.message.toLowerCase().includes("not authorized") ||
-        error.message.toLowerCase().includes("email address not authorized")
-      ) {
-        setMessage(
-          "This address cannot receive auth emails yet. Enable custom SMTP in Supabase (Authentication → SMTP) or add the address to your Supabase org team while testing."
-        );
-      } else if (
-        error.message.toLowerCase().includes("sending confirmation email") ||
-        error.message.toLowerCase().includes("sending magic link")
-      ) {
-        setMessage(
-          "Supabase could not send the email (SMTP). In the dashboard check Authentication → SMTP (host smtp.agentmail.to, port 465, user anna@spoticker.com, sender anna@spoticker.com) and AgentMail → Domains that spoticker.com is verified."
-        );
-      } else if (error.message.toLowerCase().includes("redirect")) {
-        setMessage(
-          `Redirect URL not allowed. Add ${buildAuthCallbackUrl("/connect")} under Supabase → Authentication → URL Configuration → Redirect URLs.`
-        );
-      } else {
-        setMessage(`Could not send link: ${error.message}`);
-      }
+      setMessage(
+        isRateLimit
+          ? "Please wait a minute before requesting a new link."
+          : "Could not send link. Try again."
+      );
       return;
     }
 
     setStatus("sent");
-    setMessage("");
+    setMessage("Check your email, then continue here to deploy the IAM role.");
   }
 
   return (
@@ -79,17 +61,7 @@ function ConnectEmailForm() {
       {authError && <p className="font-mono text-sm text-[#d07080]">{authErrorMessage}</p>}
 
       {status === "sent" ? (
-        <div className="rounded border border-[rgba(0,255,136,0.2)] bg-[rgba(0,255,136,0.05)] px-4 py-5 space-y-3">
-          <p className="font-mono text-sm font-medium text-[#00ff88]">Check your email</p>
-          <p className="font-mono text-sm text-[#4a6a58]">
-            We sent a sign-in link to{" "}
-            <span className="text-[#c8f0dc]">{email.trim()}</span>. Open it in this browser, then
-            you&apos;ll continue with AWS setup here.
-          </p>
-          <p className="font-mono text-[10px] text-[#2d4038]">
-            No mail? Check spam, or wait a minute and try again.
-          </p>
-        </div>
+        <p className="font-mono text-sm text-[#00ff88]">{message}</p>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

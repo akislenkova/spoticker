@@ -2,19 +2,12 @@ import DataFreshnessBar from "@/components/DataFreshness";
 import MatrixWithSps from "@/components/MatrixWithSps";
 import RecommendationPanel from "@/components/RecommendationPanel";
 import { buildMatrix } from "@/lib/matrix";
-import { createClient } from "@/lib/supabase/server";
 import { Suspense } from "react";
 
-/** Matrix data can be cached; auth must be per-request (see dynamic). */
 export const revalidate = 1800;
-export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const matrix = await buildMatrix();
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   return (
     <main className="min-h-screen p-6">
@@ -67,7 +60,7 @@ export default async function Home() {
               </div>
             }
           >
-            <MatrixWithSps data={matrix} sessionEmail={user?.email ?? null} />
+            <MatrixWithSps data={matrix} />
           </Suspense>
         )}
       </div>

@@ -1,14 +1,14 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  Creates a read-only IAM role that Spoticker can assume to fetch
+  Creates a read-only IAM role that Spotticker can assume to fetch
   Spot Placement Scores on your behalf.
 
 Parameters:
-  SpotickerRoleArn:
+  SpottickerRoleArn:
     Type: String
     Description: >
-      Spoticker principal allowed to assume this role.
-      Use arn:aws:iam::ACCOUNT_ID:role/SpotickerAssumeRole if that role exists,
+      Spotticker principal allowed to assume this role.
+      Use arn:aws:iam::ACCOUNT_ID:role/SpottickerAssumeRole if that role exists,
       or arn:aws:iam::ACCOUNT_ID:root for initial setup (same External ID still required).
     AllowedPattern: "^arn:aws:iam::[0-9]{12}:.+$"
   ExternalId:
@@ -17,7 +17,7 @@ Parameters:
     MinLength: 1
 
 Resources:
-  SpotickerRole:
+  SpottickerRole:
     Type: AWS::IAM::Role
     Properties:
       # No fixed RoleName — avoids CREATE_FAILED on stack retries
@@ -26,13 +26,13 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              AWS: !Ref SpotickerRoleArn
+              AWS: !Ref SpottickerRoleArn
             Action: sts:AssumeRole
             Condition:
               StringEquals:
                 sts:ExternalId: !Ref ExternalId
       Policies:
-        - PolicyName: SpotickerReadOnly
+        - PolicyName: SpottickerReadOnly
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -44,4 +44,4 @@ Resources:
 Outputs:
   RoleArn:
     Description: Paste this ARN back into Spoticker
-    Value: !GetAtt SpotickerRole.Arn
+    Value: !GetAtt SpottickerRole.Arn

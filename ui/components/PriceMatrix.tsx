@@ -2,7 +2,6 @@
 
 import { MatrixData, CellData } from "@/lib/matrix";
 import { CellColor, GpuLabel } from "@/lib/gpu-map";
-import { prettyRegion, regionHeaderLines } from "@/lib/region-format";
 
 const AWS_SPS_INSTANCE: Partial<Record<GpuLabel, string>> = {
   T4: "g4dn.xlarge",
@@ -59,13 +58,14 @@ const PRICE_COLOR: Record<CellColor, string> = {
   gray:   "text-[#4a6a58]",
 };
 
-const COL_W = "w-[52px] min-w-[52px] max-w-[52px]";
+const COL_W = "w-[112px] min-w-[112px] max-w-[112px]";
 const CELL_TD = `${COL_W} p-1 align-middle`;
 const CELL_BOX =
   "w-full h-[78px] box-border flex flex-col justify-between gap-0 rounded border px-1.5 py-1 text-center overflow-hidden transition-all duration-150";
 const CELL_BOX_EMPTY =
   "w-full h-[78px] box-border flex flex-col items-center justify-center rounded border px-1.5 py-1 text-center";
-const COL_TH = `${COL_W} p-0 align-bottom border-l border-[rgba(0,255,136,0.07)] overflow-hidden`;
+const COL_TH =
+  `${COL_W} p-1 text-center text-[10px] font-mono font-normal text-[#3a5a48] border-l border-[rgba(0,255,136,0.07)] whitespace-nowrap tracking-widest uppercase`;
 
 function spsColor(score: number): CellColor {
   if (score >= 8) return "green";
@@ -236,27 +236,11 @@ export default function PriceMatrix({
             ))}
           </tr>
           <tr className="bg-[rgba(2,10,7,0.95)]">
-            {data.columns.map((col) => {
-              const lines = regionHeaderLines(col.region);
-              const title = `${col.region} · ${prettyRegion(col.region)}`;
-              return (
-                <th key={col.key} className={COL_TH} title={title}>
-                  <div
-                    className="flex h-[88px] items-end justify-center overflow-hidden px-0.5 pb-2 pt-1"
-                    aria-label={title}
-                  >
-                    {lines.map((line) => (
-                      <span
-                        key={line}
-                        className="max-h-[80px] overflow-hidden text-ellipsis font-mono text-[10px] font-semibold leading-[1.15] tracking-tight text-[#7aab8e] [writing-mode:vertical-rl] rotate-180"
-                      >
-                        {line}
-                      </span>
-                    ))}
-                  </div>
-                </th>
-              );
-            })}
+            {data.columns.map((col) => (
+              <th key={col.key} className={COL_TH}>
+                {col.region}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
