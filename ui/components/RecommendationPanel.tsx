@@ -132,11 +132,11 @@ export default function RecommendationPanel() {
               // Ask Spoticker
             </h2>
             <span className="rounded border border-[rgba(0,212,255,0.2)] bg-[rgba(0,212,255,0.07)] px-2 py-0.5 font-mono text-[9px] font-medium text-[#00d4ff] tracking-widest uppercase">
-              GBrain
+              Agentic
             </span>
           </div>
           <p className="font-mono text-[11px] text-[#3a5a48] mt-0.5 leading-relaxed">
-            Describe your workload — GBrain agents read live spot pricing and eviction data to pick the best option for your job.
+            Describe your workload — the agentic layer reads live spot pricing and eviction data to pick the best option for your job.
           </p>
         </div>
       </div>
@@ -155,7 +155,7 @@ export default function RecommendationPanel() {
               &gt;_ What GPU spot instance fits your workload?
             </p>
             <p className="font-mono text-[#2d4038] text-[11px] -mt-2">
-              GBrain agents read live pricing and eviction data across AWS and Azure.
+              Live pricing and eviction data across AWS and Azure — analyzed for your workload.
             </p>
             <div className="flex flex-col gap-2 text-left">
               {EXAMPLE_PROMPTS.map((p) => (
@@ -236,7 +236,7 @@ export default function RecommendationPanel() {
           </button>
         </div>
         <p className="mt-2 text-center font-mono text-[10px] text-[#1e3028] tracking-wider">
-          Powered by GBrain · Enter ↵ to send · Shift+Enter for new line
+          Enter ↵ to send · Shift+Enter for new line
         </p>
       </div>
     </section>

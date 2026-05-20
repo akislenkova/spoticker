@@ -22,8 +22,8 @@ export default async function Home() {
             GPU Spot Availability
           </h1>
           <p className="text-[#4a6a58] text-sm mt-1 max-w-2xl font-mono leading-relaxed">
-            &gt;_ Compare spot prices and eviction risk across AWS and Azure — or query the GBrain
-            agents for a workload-specific pick.
+            &gt;_ Compare spot prices and eviction risk across AWS and Azure — or ask the agentic
+            layer for a workload-specific pick.
           </p>
           <div className="flex items-center gap-2 pt-1">
             <span className="status-dot" />

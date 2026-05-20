@@ -7,8 +7,8 @@ export default function SpotContextGuide() {
           body: "Cheapest spot price per GPU type and region. Cell color reflects eviction risk (Azure eviction %, or AWS Spot Placement Score when your account is connected). Green = safer for batch work; red = frequent interruptions.",
         },
         {
-          title: "GBrain catalog",
-          body: "Live pricing is ingested into GBrain as one page per GPU×region, with workload fit notes (what spot is good for vs. not). Same structured context powers search and downstream agents.",
+          title: "Context catalog",
+          body: "Live pricing is ingested as one page per GPU×region, with workload fit notes (what spot is good for vs. not). Same structured context powers the agentic recommendation layer.",
         },
         {
           title: "Ask Spoticker (agentic)",
