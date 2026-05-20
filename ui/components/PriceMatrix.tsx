@@ -2,6 +2,7 @@
 
 import { MatrixData, CellData } from "@/lib/matrix";
 import { CellColor, GpuLabel } from "@/lib/gpu-map";
+import { formatRegion } from "@/lib/format-region";
 
 const AWS_SPS_INSTANCE: Partial<Record<GpuLabel, string>> = {
   T4: "g4dn.xlarge",
@@ -58,14 +59,14 @@ const PRICE_COLOR: Record<CellColor, string> = {
   gray:   "text-[#4a6a58]",
 };
 
-const COL_W = "w-[112px] min-w-[112px] max-w-[112px]";
+const COL_W = "w-[116px] min-w-[116px] max-w-[116px]";
 const CELL_TD = `${COL_W} p-1 align-middle`;
 const CELL_BOX =
   "w-full h-[78px] box-border flex flex-col justify-between gap-0 rounded border px-1.5 py-1 text-center overflow-hidden transition-all duration-150";
 const CELL_BOX_EMPTY =
   "w-full h-[78px] box-border flex flex-col items-center justify-center rounded border px-1.5 py-1 text-center";
 const COL_TH =
-  `${COL_W} p-1 text-center text-[10px] font-mono font-normal text-[#3a5a48] border-l border-[rgba(0,255,136,0.07)] whitespace-nowrap tracking-widest uppercase`;
+  `${COL_W} p-1 text-center text-[10px] font-mono font-normal text-[#3a5a48] border-l border-[rgba(0,255,136,0.07)] tracking-wide uppercase leading-snug break-words`;
 
 function spsColor(score: number): CellColor {
   if (score >= 8) return "green";
@@ -238,7 +239,7 @@ export default function PriceMatrix({
           <tr className="bg-[rgba(2,10,7,0.95)]">
             {data.columns.map((col) => (
               <th key={col.key} className={COL_TH}>
-                {col.region}
+                {formatRegion(col.region)}
               </th>
             ))}
           </tr>
