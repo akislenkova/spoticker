@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 import {
   awsGpu,
   azureGpu,
+  gcpGpu,
   azureEvictionKey,
   awsRangeLabel,
   awsRangeColor,
@@ -68,6 +69,7 @@ Rules:
 - Cite actual prices and eviction rates from the data — do not hallucinate numbers
 - If the workload is risky on spot, warn and suggest on-demand or reserved as fallback
 - If no exact GPU match exists in the data, recommend the closest available option and note the gap
+- GCP prices are per-GPU/hour (accelerator only); total VM cost will be higher — note this when recommending GCP
 
 Return ONLY a valid JSON object — no markdown wrapper, no text outside the JSON:
 {
@@ -95,7 +97,7 @@ options should be ranked best-first. Include 1–3 options. options may be empty
 async function buildPricingContext(): Promise<{ context: string; timestamp: string }> {
   const now = new Date().toISOString();
 
-  const [awsPricesResult, advisorResult, azurePricesResult, azureEvictionsResult] =
+  const [awsPricesResult, advisorResult, azurePricesResult, azureEvictionsResult, gcpPricesResult] =
     await Promise.all([
       supabase.rpc("latest_aws_spot_prices"),
       supabase.from("spot_bid_advisor").select("data").order("fetched_at", { ascending: false }).limit(1),
@@ -108,6 +110,12 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
         )
         .order("fetched_at", { ascending: false })
         .limit(2000),
+      supabase
+        .from("gcp_spot_prices")
+        .select("description, regions, price_usd_per_hour")
+        .or(
+          "description.ilike.%T4%,description.ilike.%A10%,description.ilike.%L4%,description.ilike.%V100%,description.ilike.%A100%,description.ilike.%H100%"
+        ),
     ]);
 
   const advisorBlob = advisorResult.data?.[0]?.data?.spot_advisor ?? {};
@@ -163,6 +171,27 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
       `Not recommended for: ${notRecFor}\n` +
       `Updated: ${now} | Source: Spoticker / Azure Retail Prices API`
     );
+  }
+
+  // GCP pages
+  for (const row of gcpPricesResult.data ?? []) {
+    const gpu = gcpGpu(row.description ?? "");
+    if (!gpu || row.price_usd_per_hour == null) continue;
+    const rawRegions = typeof row.regions === "string" ? JSON.parse(row.regions) : row.regions;
+    const regions: string[] = Array.isArray(rawRegions) ? rawRegions : [];
+    const [recFor, notRecFor] = WORKLOAD_NOTES[gpu] ?? ["general GPU workloads", "real-time inference"];
+
+    for (const region of regions) {
+      pages.push(
+        `# ${gpu} preemptible ${region} (GCP)\n` +
+        `Cloud: GCP | Description: ${row.description} | GPU: ${gpu}\n` +
+        `Preemptible price: $${Number(row.price_usd_per_hour).toFixed(4)}/hr per GPU (accelerator cost only — add VM CPU/RAM cost)\n` +
+        `Eviction rate: N/A (no public GCP preemptible eviction data) | Risk: UNKNOWN\n` +
+        `Recommended for: ${recFor}\n` +
+        `Not recommended for: ${notRecFor}\n` +
+        `Updated: ${now} | Source: Spoticker / GCP Cloud Billing Catalog`
+      );
+    }
   }
 
   return { context: pages.join("\n\n---\n\n"), timestamp: now };

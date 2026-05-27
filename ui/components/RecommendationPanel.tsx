@@ -155,7 +155,7 @@ export default function RecommendationPanel() {
               &gt;_ What GPU spot instance fits your workload?
             </p>
             <p className="font-mono text-[#2d4038] text-[11px] -mt-2">
-              Live pricing and eviction data across AWS and Azure — analyzed for your workload.
+              Live pricing and eviction data across AWS, Azure, and GCP — analyzed for your workload.
             </p>
             <div className="flex flex-col gap-2 text-left">
               {EXAMPLE_PROMPTS.map((p) => (

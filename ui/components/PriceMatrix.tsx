@@ -22,7 +22,7 @@ function spsScoreForCell(
   return spsScores[`${region}::${instance}`];
 }
 
-const CLOUD_LABEL: Record<string, string> = { aws: "AWS", azure: "Azure" };
+const CLOUD_LABEL: Record<string, string> = { aws: "AWS", azure: "Azure", gcp: "GCP" };
 
 const CELL_BG: Record<CellColor, string> = {
   green:  "bg-[rgba(0,255,136,0.05)] border-[rgba(0,255,136,0.22)]",
@@ -231,7 +231,9 @@ export default function PriceMatrix({
                 <div className="mt-0.5 font-mono text-[9px] font-normal normal-case tracking-normal text-[#2d4038]">
                   {g.cloud === "aws"
                     ? AWS_METRIC_SUB[awsUsesSps ? "sps" : "eviction"]
-                    : "Eviction rate"}
+                    : g.cloud === "gcp"
+                      ? "Preemptible price"
+                      : "Eviction rate"}
                 </div>
               </th>
             ))}

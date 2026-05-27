@@ -10,3 +10,8 @@ export function azureVmCreateUrl(region: string): string {
   const params = new URLSearchParams({ location: region });
   return `https://portal.azure.com/#create/Microsoft.VirtualMachine-ARM?${params.toString()}`;
 }
+
+/** GCP Cloud Console — create a preemptible VM in a given region. */
+export function gcpVmCreateUrl(region: string): string {
+  return `https://console.cloud.google.com/compute/instancesAdd?region=${encodeURIComponent(region)}`;
+}

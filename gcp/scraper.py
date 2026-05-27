@@ -10,7 +10,6 @@ GCP auth uses Application Default Credentials.
 Run `gcloud auth application-default login` if not already set up.
 """
 
-import json
 import os
 
 import requests as http
@@ -34,10 +33,6 @@ def _upsert(table: str, rows: list[dict]) -> None:
     url = f"{SUPABASE_URL}/rest/v1/{table}"
     for i in range(0, len(rows), BATCH):
         chunk = rows[i : i + BATCH]
-        # regions is a list — serialize to JSON for the jsonb column
-        for row in chunk:
-            if isinstance(row.get("regions"), list):
-                row["regions"] = json.dumps(row["regions"])
         resp = http.post(url, json=chunk, headers=HEADERS, timeout=30)
         resp.raise_for_status()
     print(f"  upserted {len(rows)} rows → {table}")

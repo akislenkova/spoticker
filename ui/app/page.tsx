@@ -22,13 +22,13 @@ export default async function Home() {
             GPU Spot Availability
           </h1>
           <p className="text-[#4a6a58] text-sm mt-1 max-w-2xl font-mono leading-relaxed">
-            &gt;_ Compare spot prices and eviction risk across AWS and Azure — or ask the agentic
+            &gt;_ Compare spot prices and eviction risk across AWS, Azure, and GCP — or ask the agentic
             layer for a workload-specific pick.
           </p>
           <div className="flex items-center gap-2 pt-1">
             <span className="status-dot" />
             <span className="font-mono text-[10px] text-[rgba(0,255,136,0.4)] tracking-[0.2em] uppercase">
-              System Online · Monitoring AWS · Azure
+              System Online · Monitoring AWS · Azure · GCP
             </span>
           </div>
         </div>
@@ -45,11 +45,12 @@ export default async function Home() {
             <span className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-[rgba(0,255,136,0.3)] pointer-events-none" />
             <p className="text-base font-medium text-[#7aab8e]">No data yet</p>
             <p className="mt-2 text-sm text-[#3d5a47]">
-              Run the AWS and Azure scrapers to populate the matrix.
+              Run the scrapers to populate the matrix.
             </p>
             <code className="mt-4 block text-xs text-[#2d4038] font-mono">
               cd aws &amp;&amp; python scraper.py<br />
-              cd azure &amp;&amp; python scraper.py
+              cd azure &amp;&amp; python scraper.py<br />
+              cd gcp &amp;&amp; python scraper.py
             </code>
           </div>
         ) : (

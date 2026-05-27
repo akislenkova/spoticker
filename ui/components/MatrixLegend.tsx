@@ -43,7 +43,7 @@ function Panel({ children }: { children: React.ReactNode }) {
 
 export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
   return (
-    <div className="grid gap-3 lg:grid-cols-2 text-xs">
+    <div className="grid gap-3 lg:grid-cols-3 text-xs">
       <Panel>
         <div className="flex items-center gap-2">
           <span className="font-mono font-semibold text-[#7aab8e] tracking-wider">AWS</span>
@@ -114,6 +114,26 @@ export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
           <LegendRow color="red" label="15%+ / 20+" detail="high eviction" />
           <LegendRow color="gray" label="No data" detail="price only, no eviction row" />
         </ul>
+      </Panel>
+
+      <Panel>
+        <div className="flex items-center gap-2">
+          <span className="font-mono font-semibold text-[#7aab8e] tracking-wider">GCP</span>
+          <span className="rounded border border-[rgba(160,100,255,0.2)] bg-[rgba(160,100,255,0.07)] px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase tracking-widest text-[#a064ff]">
+            Preemptible
+          </span>
+        </div>
+        <p className="mt-2 font-mono text-[#3a5a48] leading-relaxed text-[11px]">
+          Prices from the{" "}
+          <strong className="font-medium text-[#5e8a6e]">GCP Cloud Billing Catalog</strong> for
+          preemptible GPU SKUs. No eviction data available — all cells shown in gray.
+        </p>
+        <ul className="mt-2 space-y-1">
+          <LegendRow color="gray" label="All cells" detail="price only, no eviction signal" />
+        </ul>
+        <p className="mt-2 font-mono text-[11px] text-[#1e3028]">
+          Prices are per-GPU/hour from the billing catalog and update when GCP changes them.
+        </p>
       </Panel>
     </div>
   );

@@ -1,0 +1,29 @@
+name: Scrape GCP spot prices
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # weekly, Mondays at 06:00 UTC (prices guaranteed stable ≤30 days)
+  workflow_dispatch:      # manual trigger
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install google-auth requests
+
+      - name: Write GCP credentials
+        run: echo '${{ secrets.GCP_ADC_CREDENTIALS }}' > /tmp/gcp_creds.json
+
+      - name: Run GCP scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp_creds.json
+        run: python gcp/scraper.py

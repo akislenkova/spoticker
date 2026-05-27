@@ -23,6 +23,8 @@ export default function DataFreshnessBar({ freshness }: { freshness: DataFreshne
       <Item label="Azure prices" at={freshness.azurePricesAt} />
       <span className="text-[#1a2e22] hidden sm:inline">·</span>
       <Item label="Azure eviction" at={freshness.azureEvictionAt} />
+      <span className="text-[#1a2e22] hidden sm:inline">·</span>
+      <Item label="GCP prices" at={freshness.gcpPricesAt} />
     </p>
   );
 }
