@@ -23,6 +23,12 @@ export default async function AuthHeader() {
 
         {/* Nav */}
         <nav className="flex items-center gap-5 font-mono text-xs">
+          <Link
+            href="/plan"
+            className="text-[#4a6a58] hover:text-[#00ff88] transition-colors tracking-wider"
+          >
+            // plan mode
+          </Link>
           {user ? (
             <>
               <span className="text-[#2d4038] truncate max-w-[200px] tracking-wide">{user.email}</span>

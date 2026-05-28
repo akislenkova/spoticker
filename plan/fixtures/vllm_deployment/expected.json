@@ -1,0 +1,6 @@
+{
+  "workload_kind": "inference",
+  "gpu_count_min": 1,
+  "acceptable_gpu_types": ["T4", "A10G", "L4", "V100", "A100-40GB", "A100-80GB", "H100"],
+  "notes": "Mistral-7B fp16 needs ~14GB VRAM; L4 or A10G are cost-optimal choices"
+}

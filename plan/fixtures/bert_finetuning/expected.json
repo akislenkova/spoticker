@@ -1,0 +1,7 @@
+{
+  "workload_kind": "training",
+  "gpu_count_min": 1,
+  "acceptable_gpu_types": ["T4", "A10G", "L4", "V100", "A100-40GB", "A100-80GB", "H100"],
+  "must_have_spot_toleration": true,
+  "notes": "BERT-large fp16 fits in ~8GB VRAM; any single GPU is sufficient"
+}

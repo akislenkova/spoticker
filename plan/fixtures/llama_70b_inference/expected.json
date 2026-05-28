@@ -1,0 +1,9 @@
+{
+  "workload_kind": "inference",
+  "gpu_count_min": 4,
+  "min_gpu_memory_gb": 160,
+  "acceptable_gpu_types": ["A100-80GB", "H100"],
+  "must_have_spot_toleration": true,
+  "must_have_pdb_if_replicas_gt_1": true,
+  "notes": "Llama-70B fp16 needs ~140GB VRAM + KV cache overhead → 160GB floor → 4×A100-80GB or 2×H100 minimum"
+}

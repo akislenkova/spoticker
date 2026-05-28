@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bert-finetune
+spec:
+  template:
+    spec:
+      containers:
+        - name: trainer
+          image: pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
+          command:
+            - torchrun
+            - --nproc_per_node=1
+            - train.py
+            - --model_name_or_path=bert-large-uncased
+            - --do_train
+            - --num_train_epochs=3
+            - --per_device_train_batch_size=16
+          resources:
+            limits:
+              nvidia.com/gpu: "1"
+              memory: "32Gi"
+              cpu: "8"
+            requests:
+              nvidia.com/gpu: "1"
+              memory: "24Gi"
+              cpu: "4"
+      restartPolicy: Never

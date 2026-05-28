@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-70b-server
+  labels:
+    app: llama-70b-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llama-70b-server
+  template:
+    metadata:
+      labels:
+        app: llama-70b-server
+    spec:
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          command:
+            - python
+            - -m
+            - vllm.entrypoints.openai.api_server
+            - --model
+            - meta-llama/Llama-2-70b-chat-hf
+            - --tensor-parallel-size
+            - "4"
+            - --max-model-len
+            - "4096"
+          env:
+            - name: MODEL_ID
+              value: meta-llama/Llama-2-70b-chat-hf
+            - name: HUGGINGFACE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-secret
+                  key: token
+          resources:
+            limits:
+              nvidia.com/gpu: "4"
+              memory: "256Gi"
+              cpu: "48"
+            requests:
+              nvidia.com/gpu: "4"
+              memory: "200Gi"
+              cpu: "32"
+          ports:
+            - containerPort: 8000
