@@ -6,8 +6,9 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Security, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.pipeline import run_pipeline
 from app.schemas import Objective, PlanResult, SourceFile
@@ -17,6 +18,15 @@ load_dotenv()
 # Validate required env vars at startup
 _REQUIRED_ENV = ["ANTHROPIC_API_KEY", "SUPABASE_URL"]
 _missing = [k for k in _REQUIRED_ENV if not os.environ.get(k)]
+_SECRET = os.environ.get("PLAN_SERVICE_SECRET")
+
+_bearer = HTTPBearer(auto_error=False)
+
+def _check_auth(credentials: HTTPAuthorizationCredentials | None) -> None:
+    if not _SECRET:
+        return  # no secret configured — open in local dev
+    if credentials is None or credentials.credentials != _SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 @asynccontextmanager
@@ -59,11 +69,14 @@ async def analyze(
     files: Annotated[list[UploadFile], File(description="Dockerfile, k8s YAML, Terraform, or Helm values")],
     objective: Annotated[Objective, Form()] = Objective.cost_reliability,
     intent: Annotated[str | None, Form()] = None,
+    credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
 ):
     """
     Run the 5-stage Plan Mode pipeline against uploaded artifact files.
     Returns structured placement recommendations + a deployment-ready diff.
     """
+    _check_auth(credentials)
+
     if not files:
         raise HTTPException(status_code=400, detail="At least one file is required.")
 
