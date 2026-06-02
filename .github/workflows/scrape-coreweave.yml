@@ -1,0 +1,25 @@
+name: Scrape CoreWeave spot prices
+
+on:
+  schedule:
+    - cron: "30 * * * *"  # 30 past each hour (offset from RunPod/AWS at :15, Vast at :45)
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run CoreWeave scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python coreweave/scraper.py

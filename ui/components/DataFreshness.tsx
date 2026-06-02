@@ -29,6 +29,8 @@ export default function DataFreshnessBar({ freshness }: { freshness: DataFreshne
       <Item label="RunPod prices" at={freshness.runpodPricesAt} />
       <span className="text-[#1a2e22] hidden sm:inline">·</span>
       <Item label="Vast.ai prices" at={freshness.vastPricesAt} />
+      <span className="text-[#1a2e22] hidden sm:inline">·</span>
+      <Item label="CoreWeave prices" at={freshness.coreweavePricesAt} />
     </p>
   );
 }

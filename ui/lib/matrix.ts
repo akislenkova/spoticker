@@ -7,6 +7,7 @@ import {
   gcpGpu,
   runpodGpu,
   vastGpu,
+  coreweaveGpu,
   vastReliabilityLabel,
   vastReliabilityColor,
   azureEvictionKey,
@@ -14,6 +15,7 @@ import {
   awsRangeColor,
   evictionColor,
   RUNPOD_INTERRUPT_LABEL,
+  COREWEAVE_SPOT_LABEL,
 } from "./gpu-map";
 import {
   awsEc2LaunchUrl,
@@ -21,6 +23,7 @@ import {
   gcpVmCreateUrl,
   runpodSpotDeployUrl,
   vastOfferSearchUrl,
+  coreweavePricingUrl,
 } from "./cloud-links";
 
 export type CellData = {
@@ -32,7 +35,7 @@ export type CellData = {
 };
 
 export type MatrixColumn = {
-  cloud: "aws" | "azure" | "gcp" | "runpod" | "vast";
+  cloud: "aws" | "azure" | "gcp" | "runpod" | "vast" | "coreweave";
   region: string;
   key: string;
 };
@@ -50,6 +53,7 @@ export type DataFreshness = {
   gcpPricesAt: string | null;
   runpodPricesAt: string | null;
   vastPricesAt: string | null;
+  coreweavePricesAt: string | null;
 };
 
 export type MatrixData = {
@@ -393,10 +397,56 @@ async function fetchVast(): Promise<Map<string, CellEntry>> {
   return map;
 }
 
+// ── CoreWeave ────────────────────────────────────────────────────────────────
+
+async function fetchCoreweave(): Promise<Map<string, CellEntry>> {
+  const { data, error } = await supabase
+    .from("coreweave_spot_prices")
+    .select(
+      "product_slug, region, model_name, gpu_label, gpu_count, spot_price_usd_per_gpu, spot_savings_pct"
+    );
+
+  if (error) console.error("[coreweave] coreweave_spot_prices:", error.message);
+
+  const map = new Map<string, CellEntry>();
+
+  for (const row of data ?? []) {
+    const gpu =
+      (row.gpu_label as GpuLabel | null) ??
+      coreweaveGpu(row.model_name ?? "");
+    if (!gpu || row.spot_price_usd_per_gpu == null) continue;
+
+    const region = row.region as string;
+    if (region !== "us" && region !== "eu") continue;
+
+    const savings =
+      row.spot_savings_pct != null ? Number(row.spot_savings_pct) : null;
+    const evictionLabel =
+      savings != null
+        ? `${COREWEAVE_SPOT_LABEL} · ~${savings.toFixed(0)}% off`
+        : COREWEAVE_SPOT_LABEL;
+
+    const key = `${gpu}::coreweave:${region}`;
+    const price = Number(row.spot_price_usd_per_gpu);
+    const existing = map.get(key);
+    if (!existing || price < existing.price) {
+      map.set(key, {
+        price,
+        evictionLabel,
+        color: "gray",
+        instanceLabel: row.model_name ?? row.product_slug,
+        href: coreweavePricingUrl(),
+      });
+    }
+  }
+
+  return map;
+}
+
 // ── Scrape timestamps ─────────────────────────────────────────────────────────
 
 async function fetchFreshness(): Promise<DataFreshness> {
-  const [awsPrice, awsAdvisor, azurePrice, azureEviction, gcpPrice, runpodPrice, vastPrice] =
+  const [awsPrice, awsAdvisor, azurePrice, azureEviction, gcpPrice, runpodPrice, vastPrice, coreweavePrice] =
     await Promise.all([
     supabase
       .from("spot_price_history")
@@ -440,6 +490,12 @@ async function fetchFreshness(): Promise<DataFreshness> {
       .order("fetched_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("coreweave_spot_prices")
+      .select("fetched_at")
+      .order("fetched_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   return {
@@ -450,6 +506,7 @@ async function fetchFreshness(): Promise<DataFreshness> {
     gcpPricesAt: gcpPrice.data?.effective_time ?? null,
     runpodPricesAt: runpodPrice.data?.fetched_at ?? null,
     vastPricesAt: vastPrice.data?.fetched_at ?? null,
+    coreweavePricesAt: coreweavePrice.data?.fetched_at ?? null,
   };
 }
 
@@ -459,12 +516,13 @@ const DEV_CACHE_MS = 120_000;
 let devMatrixCache: { data: MatrixData; at: number } | null = null;
 
 async function buildMatrixInner(): Promise<MatrixData> {
-  const [awsMap, azureMap, gcpMap, runpodMap, vastMap, freshness] = await Promise.all([
+  const [awsMap, azureMap, gcpMap, runpodMap, vastMap, coreweaveMap, freshness] = await Promise.all([
     fetchAws(),
     fetchAzure(),
     fetchGcp(),
     fetchRunpod(),
     fetchVast(),
+    fetchCoreweave(),
     fetchFreshness(),
   ]);
 
@@ -475,6 +533,7 @@ async function buildMatrixInner(): Promise<MatrixData> {
     ...gcpMap.keys(),
     ...runpodMap.keys(),
     ...vastMap.keys(),
+    ...coreweaveMap.keys(),
   ]) {
     columnSet.add(key.split("::")[1]);
   }
@@ -483,7 +542,7 @@ async function buildMatrixInner(): Promise<MatrixData> {
     .sort((a, b) => {
       const [ca, ra] = a.split(":");
       const [cb, rb] = b.split(":");
-      const cloudOrder = { aws: 0, azure: 1, gcp: 2, runpod: 3, vast: 4 } as Record<string, number>;
+      const cloudOrder = { aws: 0, azure: 1, gcp: 2, runpod: 3, vast: 4, coreweave: 5 } as Record<string, number>;
       return (cloudOrder[ca] ?? 9) - (cloudOrder[cb] ?? 9) || ra.localeCompare(rb);
     })
     .map((cr) => {
@@ -493,7 +552,7 @@ async function buildMatrixInner(): Promise<MatrixData> {
       return { cloud, region, key: cr };
     });
 
-  const allData = new Map([...awsMap, ...azureMap, ...gcpMap, ...runpodMap, ...vastMap]);
+  const allData = new Map([...awsMap, ...azureMap, ...gcpMap, ...runpodMap, ...vastMap, ...coreweaveMap]);
 
   const rows: MatrixRow[] = GPU_ORDER.map((gpu) => ({
     gpu,

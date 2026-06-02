@@ -170,6 +170,33 @@ export function vastGpu(gpuName: string): GpuLabel | null {
   return null;
 }
 
+/** CoreWeave spot instances are preemptible; no public eviction telemetry. */
+export const COREWEAVE_SPOT_LABEL = "preemptible";
+
+// CoreWeave model_name / gpu_label from scraper → hardware type (order: specific first)
+const COREWEAVE_PATTERNS: [RegExp, GpuLabel][] = [
+  [/\bH200\b/i, "H200"],
+  [/\bH100\b/i, "H100"],
+  [/A100.*80\s*GB/i, "A100 80GB"],
+  [/A100.*40\s*GB/i, "A100 40GB"],
+  [/\bA100\b/i, "A100 80GB"],
+  [/\bV100\b/i, "V100"],
+  [/\bL40S\b/i, "L40S"],
+  [/\bL40\b/i, "L40S"],
+  [/\bL4\b/i, "L4"],
+  [/\bA10\b/i, "A10G"],
+  [/\bT4\b/i, "T4"],
+  [/\bAMD\b/i, "CPU (AMD)"],
+  [/\bIntel\b/i, "CPU (Intel)"],
+];
+
+export function coreweaveGpu(labelOrModel: string): GpuLabel | null {
+  for (const [re, gpu] of COREWEAVE_PATTERNS) {
+    if (re.test(labelOrModel)) return gpu;
+  }
+  return null;
+}
+
 /** Vast.ai host reliability (0–1) → display label and traffic-light color. */
 export function vastReliabilityLabel(reliability: number): string {
   return `${(reliability * 100).toFixed(1)}%`;

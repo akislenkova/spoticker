@@ -7,6 +7,7 @@ import {
   runpodGpu,
   GpuLabel,
   vastGpu,
+  coreweaveGpu,
   vastReliabilityLabel,
   vastReliabilityColor,
   azureEvictionKey,
@@ -14,6 +15,7 @@ import {
   awsRangeColor,
   evictionColor,
   RUNPOD_INTERRUPT_LABEL,
+  COREWEAVE_SPOT_LABEL,
 } from "./gpu-map";
 
 export type RecommendationOption = {
@@ -146,6 +148,7 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
     gcpPricesResult,
     runpodPricesResult,
     vastPricesResult,
+    coreweavePricesResult,
   ] = await Promise.all([
       supabase.rpc("latest_aws_spot_prices"),
       supabase.from("spot_bid_advisor").select("data").order("fetched_at", { ascending: false }).limit(1),
@@ -198,6 +201,9 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
       supabase
         .from("vast_spot_prices")
         .select("gpu_label, gpu_name, cloud_tier, display_name, spot_price_usd_per_gpu, reliability, fetched_at"),
+      supabase
+        .from("coreweave_spot_prices")
+        .select("product_slug, region, model_name, gpu_label, spot_price_usd_per_gpu, spot_savings_pct, fetched_at"),
     ]);
 
   const advisorBlob = advisorResult.data?.[0]?.data?.spot_advisor ?? {};
@@ -316,6 +322,29 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
       `Recommended for: ${recFor}\n` +
       `Not recommended for: ${notRecFor}\n` +
       `Updated: ${row.fetched_at ?? now} | Source: Spoticker / Vast.ai REST API`
+    );
+  }
+
+  // CoreWeave pages (preemptible spot; enterprise onboarding required)
+  for (const row of coreweavePricesResult.data ?? []) {
+    const gpu: GpuLabel | null =
+      (row.gpu_label as GpuLabel | null) ??
+      coreweaveGpu(row.model_name ?? "");
+    if (!gpu || row.spot_price_usd_per_gpu == null) continue;
+    const region = row.region === "eu" ? "Europe" : "North America";
+    const savings = row.spot_savings_pct != null ? Number(row.spot_savings_pct) : null;
+    const [recFor, notRecFor] = WORKLOAD_NOTES[gpu] ?? ["general workloads", "real-time inference"];
+
+    pages.push(
+      `# ${gpu} spot ${region} (CoreWeave ${row.model_name})\n` +
+      `Cloud: CoreWeave | Product: ${row.product_slug} | Region: ${region} | Type: ${gpu}\n` +
+      `Spot price: $${Number(row.spot_price_usd_per_gpu).toFixed(4)}/GPU-hr` +
+      (savings != null ? ` (~${savings.toFixed(0)}% below on-demand)` : "") + `\n` +
+      `Spot type: ${COREWEAVE_SPOT_LABEL} (preemptible; no public eviction telemetry) | Risk: UNKNOWN\n` +
+      `Access: enterprise sales onboarding required — no self-serve spot API\n` +
+      `Recommended for: ${recFor}\n` +
+      `Not recommended for: ${notRecFor}\n` +
+      `Updated: ${row.fetched_at ?? now} | Source: Spoticker / CoreWeave pricing page scrape`
     );
   }
 

@@ -70,9 +70,15 @@ const NEOCLOUD_TIER: Record<string, string> = {
   secure: "secure-cloud",
 };
 
+const COREWEAVE_REGION: Record<string, string> = {
+  us: "north-america",
+  eu: "europe",
+};
+
 /** Returns a dash-separated region label for display. AWS regions already have dashes; Azure ones don't. */
 export function formatRegion(region: string): string {
   if (region in NEOCLOUD_TIER) return NEOCLOUD_TIER[region];
+  if (region in COREWEAVE_REGION) return COREWEAVE_REGION[region];
   if (region.includes("-")) return region;
   return AZURE[region] ?? region;
 }

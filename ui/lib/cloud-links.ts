@@ -37,3 +37,8 @@ export function vastOfferSearchUrl(
   });
   return `https://cloud.vast.ai/?${params.toString()}`;
 }
+
+/** CoreWeave pricing page — spot requires sales onboarding, no self-serve API. */
+export function coreweavePricingUrl(): string {
+  return "https://www.coreweave.com/pricing";
+}
