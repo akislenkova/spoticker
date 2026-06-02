@@ -136,7 +136,7 @@ export default function RecommendationPanel() {
             </span>
           </div>
           <p className="font-mono text-[11px] text-[#80b898] mt-0.5 leading-relaxed">
-            Describe your workload — the agentic layer reads live spot pricing and eviction data to pick the best option for your job.
+            Describe your workload. The agentic layer reads live spot pricing and eviction data to pick the best option for your job.
           </p>
         </div>
       </div>
@@ -155,7 +155,7 @@ export default function RecommendationPanel() {
               &gt;_ What spot instance fits your workload?
             </p>
             <p className="font-mono text-[#80b898] text-[11px] -mt-2">
-              Live pricing and eviction data across AWS, Azure, and GCP — analyzed for your workload.
+              Live pricing and eviction data across AWS, Azure, and GCP, analyzed for your workload.
             </p>
             <div className="flex flex-col gap-2 text-left">
               {EXAMPLE_PROMPTS.map((p) => (

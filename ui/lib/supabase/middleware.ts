@@ -33,7 +33,7 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isAuthRoute = path.startsWith("/login") || path.startsWith("/auth/");
-  // Public AWS routes (no session required) — see route comments
+  // Public AWS routes (no session required) - see route comments
   const isPublicAwsApi =
     path === "/api/aws/config" || path === "/api/aws/cfn-template";
   const isProtected = path.startsWith("/api/aws/") && !isPublicAwsApi;

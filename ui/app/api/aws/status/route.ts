@@ -9,7 +9,7 @@ import {
   getLatestErrorForUser,
 } from "@/lib/aws-db";
 
-// GET /api/aws/status — whether the signed-in user has an active AWS connection
+// GET /api/aws/status: whether the signed-in user has an active AWS connection
 
 export async function GET() {
   const auth = await getAuthenticatedSupabase();

@@ -108,9 +108,9 @@ function ReportTab({ result }: { result: PlanResult }) {
           {[
             ["Source", spec.source_type],
             ["Kind", spec.workload.kind],
-            ["Image", spec.workload.image ?? "—"],
-            ["GPU request", spec.resources.gpu_count != null ? `${spec.resources.gpu_count}× ${spec.resources.gpu_type ?? "?"}` : "—"],
-            ["Memory", spec.resources.memory_request ?? "—"],
+            ["Image", spec.workload.image ?? "-"],
+            ["GPU request", spec.resources.gpu_count != null ? `${spec.resources.gpu_count}× ${spec.resources.gpu_type ?? "?"}` : "-"],
+            ["Memory", spec.resources.memory_request ?? "-"],
             ["Replicas", String(spec.resources.replicas)],
             ["Spot", spec.scheduling.use_spot === null ? "not specified" : spec.scheduling.use_spot ? "yes" : "no"],
           ].map(([label, val]) => (
@@ -236,7 +236,7 @@ function DiffTab({ result }: { result: PlanResult }) {
       {rewrite.validation_failed && (
         <div className="rounded border border-[rgba(255,50,80,0.25)] bg-[rgba(255,50,80,0.04)] px-3 py-2">
           <span className="font-mono text-xs text-[#d07080]">
-            Validation failed — review diff manually before applying.
+            Validation failed. Review diff manually before applying.
           </span>
           {rewrite.validator_output && (
             <pre className="mt-2 font-mono text-[10px] text-[#2d4038] whitespace-pre-wrap overflow-x-auto">
@@ -358,16 +358,16 @@ function MigrationTab({ result }: { result: PlanResult }) {
         </div>
         <div className="rounded border border-[rgba(0,255,136,0.07)] bg-[rgba(3,12,9,0.7)] p-4 space-y-2 font-mono text-xs text-[#4a6a58]">
           {[
-            "Review the diff in the Diff tab — never apply blindly",
+            "Review the diff in the Diff tab. Never apply blindly.",
             "Ensure your workload handles spot eviction (checkpoint, graceful shutdown hook)",
             result.spec.resources.replicas > 1
-              ? "PodDisruptionBudget should be included — verify in the diff"
-              : "Single replica — consider minAvailable PDB if this becomes multi-replica",
+              ? "PodDisruptionBudget should be included; verify in the diff"
+              : "Single replica. Consider minAvailable PDB if this becomes multi-replica.",
             "Set a node affinity / toleration matching the target instance family",
             "Validate with kubeval / kubeconform before applying to production",
             chosen.eviction_confidence === "low"
-              ? "Eviction data unavailable for this region — monitor closely after deploy"
-              : `Eviction rate ${chosen.eviction_rate_pct ?? "?"}% — within acceptable range`,
+              ? "Eviction data unavailable for this region; monitor closely after deploy"
+              : `Eviction rate ${chosen.eviction_rate_pct ?? "?"}%, within acceptable range`,
           ].map((item, i) => (
             <div key={i} className="flex gap-2">
               <span className="text-[rgba(0,255,136,0.4)] flex-shrink-0">□</span>

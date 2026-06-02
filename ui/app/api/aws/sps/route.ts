@@ -8,7 +8,7 @@ import { formatAwsError } from "@/lib/aws-errors";
 import { isSpottickerAwsConfigured } from "@/lib/aws-credentials";
 import { getConnectionForUser, getLatestConnectedForUser } from "@/lib/aws-db";
 
-// POST /api/aws/sps — uses httpOnly connection cookie; user_id enforced server-side
+// POST /api/aws/sps: uses httpOnly connection cookie; user_id enforced server-side
 
 export async function POST(req: NextRequest) {
   const auth = await getAuthenticatedSupabase();

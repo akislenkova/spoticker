@@ -22,7 +22,7 @@ function LegendRow({
       <span>
         <span className="text-[#7aab8e] font-mono text-[11px]">{label}</span>
         {detail ? (
-          <span className="font-mono text-[11px] text-[#80b898]"> — {detail}</span>
+          <span className="font-mono text-[11px] text-[#80b898]"> · {detail}</span>
         ) : null}
       </span>
     </li>
@@ -126,7 +126,7 @@ export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
         <p className="mt-2 font-mono text-[#80b898] leading-relaxed text-[11px]">
           Cell color uses marketplace{" "}
           <strong className="font-medium text-[#8ec4a6]">host reliability %</strong> (historical
-          uptime). Higher % = greener cell — opposite of eviction columns.
+          uptime). Higher % = greener cell, opposite of eviction columns.
         </p>
         <ul className="mt-2 space-y-1">
           <LegendRow color="green" label="≥99%" detail="high reliability" />
@@ -145,7 +145,7 @@ export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
         <p className="mt-2 font-mono text-[#80b898] leading-relaxed text-[11px]">
           Prices from the{" "}
           <strong className="font-medium text-[#8ec4a6]">GCP Cloud Billing Catalog</strong> for
-          preemptible SKUs. No eviction data available — all cells shown in gray.
+          preemptible SKUs. No eviction data available; all cells shown in gray.
         </p>
         <ul className="mt-2 space-y-1">
           <LegendRow color="gray" label="All cells" detail="price only, no eviction signal" />
@@ -163,7 +163,7 @@ export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
           </span>
         </div>
         <p className="mt-2 font-mono text-[#80b898] leading-relaxed text-[11px]">
-          Prices from RunPod&apos;s public GraphQL API — no key required. Two tiers:{" "}
+          Prices from RunPod&apos;s public GraphQL API, no key required. Two tiers:{" "}
           <strong className="font-medium text-[#8ec4a6]">Community Cloud</strong> (consumer
           hardware, lower cost) and{" "}
           <strong className="font-medium text-[#8ec4a6]">Secure Cloud</strong> (enterprise-grade,
@@ -173,7 +173,7 @@ export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
           <LegendRow color="gray" label="All cells" detail="price only · 5s SIGTERM on interrupt" />
         </ul>
         <p className="mt-2 font-mono text-[11px] text-[#80b898]">
-          No eviction rate data — interruption risk depends on live spot capacity.
+          No eviction rate data; interruption risk depends on live spot capacity.
         </p>
       </Panel>
 
@@ -206,7 +206,7 @@ export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
           </span>
         </div>
         <p className="mt-2 font-mono text-[#80b898] leading-relaxed text-[11px]">
-          Prices scraped from Nebius docs — no credentials required. GPU inventory focuses on{" "}
+          Prices scraped from Nebius docs, no credentials required. GPU inventory focuses on{" "}
           <strong className="font-medium text-[#8ec4a6]">EU regions</strong>. The metric shows
           estimated savings vs on-demand where available.
         </p>

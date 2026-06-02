@@ -57,7 +57,7 @@ export default function PlanPage() {
         setResult(data as PlanResult);
       }
     } catch {
-      setError("Network error — could not reach the Plan service.");
+      setError("Network error: could not reach the Plan service.");
     } finally {
       setLoading(false);
     }
@@ -83,7 +83,7 @@ export default function PlanPage() {
             Spot Placement Advisor
           </h1>
           <p className="font-mono text-sm text-[#4a6a58] max-w-xl leading-relaxed">
-            &gt;_ Drop in a Dockerfile, k8s manifest, Helm values, or Terraform — get a placement
+            &gt;_ Drop in a Dockerfile, k8s manifest, Helm values, or Terraform. Get a placement
             recommendation and a deployment-ready rewrite targeting the best spot instance.
           </p>
         </div>

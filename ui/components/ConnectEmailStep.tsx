@@ -54,7 +54,7 @@ function ConnectEmailForm() {
   return (
     <div className="space-y-4">
       <p className="font-mono text-sm text-[#4a6a58]">
-        Enter your email — we&apos;ll send a one-time link, then you&apos;ll set up a read-only
+        Enter your email. We&apos;ll send a one-time link, then you&apos;ll set up a read-only
         IAM role in AWS (about 2–3 minutes).
       </p>
 

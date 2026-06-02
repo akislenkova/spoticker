@@ -7,7 +7,7 @@ export default function NotFound() {
         <p className="font-mono text-[10px] tracking-[0.25em] text-[rgba(0,255,136,0.4)] uppercase">// 404</p>
         <h1 className="text-xl font-bold text-[#c8f0dc] tracking-tight">Page not found</h1>
         <p className="font-mono text-sm text-[#3a5a48] leading-relaxed">
-          This URL is not part of Spoticker. The matrix lives on the home page — do not open
+          This URL is not part of Spoticker. The matrix lives on the home page. Do not open
           your <code className="text-[#4a6a58]">*.supabase.co</code> project link in the browser.
         </p>
         <div className="flex flex-wrap justify-center gap-3 text-sm">

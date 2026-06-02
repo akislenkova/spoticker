@@ -58,11 +58,11 @@ const WORKLOAD_NOTES: Record<string, [string, string]> = {
   H100:             ["frontier model training, maximum throughput batch inference",
                      "cost-sensitive workloads, real-time serving where A100 suffices"],
   B200:             ["next-gen Blackwell training, high-bandwidth multi-GPU clusters",
-                     "cost-sensitive workloads — use H200 or H100 instead"],
+                     "cost-sensitive workloads; use H200 or H100 instead"],
   B300:             ["largest-scale frontier training, Blackwell Ultra memory/compute",
-                     "cost-sensitive workloads — use B200, H200, or H100 instead"],
+                     "cost-sensitive workloads; use B200, H200, or H100 instead"],
   H200:             ["cutting-edge frontier training, HBM3e memory-bound workloads",
-                     "cost-sensitive use cases — use H100 or A100 instead"],
+                     "cost-sensitive use cases; use H100 or A100 instead"],
   "CPU (AMD)":      ["CPU-bound batch jobs, data preprocessing, general-purpose compute",
                      "GPU-accelerated training or inference"],
   "CPU (Intel)":    ["CPU-bound batch jobs, data preprocessing, general-purpose compute",
@@ -112,15 +112,15 @@ const SYSTEM_PROMPT = `You are Spoticker's recommendation engine. You have live 
 Given a workload description and a set of live pricing pages, return a specific, opinionated recommendation like a senior infra engineer would give.
 
 Rules:
-- NEVER recommend spot for real-time inference, stateful services, or latency-sensitive workloads — say so explicitly
+- NEVER recommend spot for real-time inference, stateful services, or latency-sensitive workloads; say so explicitly
 - For batch training / fine-tuning that tolerates eviction: optimise cost × risk together, not just cheapest price
 - Be opinionated: pick one winner, explain why, acknowledge the tradeoff
-- Cite actual prices and eviction rates from the data — do not hallucinate numbers
+- Cite actual prices and eviction rates from the data; do not hallucinate numbers
 - If the workload is risky on spot, warn and suggest on-demand or reserved as fallback
 - If no exact match exists in the data, recommend the closest available option and note the gap
-- GCP prices are per-GPU/hour (accelerator only); total VM cost will be higher — note this when recommending GCP
+- GCP prices are per-GPU/hour (accelerator only); total VM cost will be higher. Note this when recommending GCP
 
-Return ONLY a valid JSON object — no markdown wrapper, no text outside the JSON:
+Return ONLY a valid JSON object. No markdown wrapper, no text outside the JSON:
 {
   "title": "short recommendation title (1 line)",
   "summary": "bottom line in 1-2 sentences",
@@ -287,7 +287,7 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
       pages.push(
         `# ${gpu} preemptible ${region} (GCP)\n` +
         `Cloud: GCP | Description: ${row.description} | Type: ${gpu}\n` +
-        `Preemptible price: $${Number(row.price_usd_per_hour).toFixed(4)}/hr (accelerator cost only — add VM CPU/RAM cost)\n` +
+        `Preemptible price: $${Number(row.price_usd_per_hour).toFixed(4)}/hr (accelerator cost only; add VM CPU/RAM cost)\n` +
         `Eviction rate: N/A (no public GCP preemptible eviction data) | Risk: UNKNOWN\n` +
         `Recommended for: ${recFor}\n` +
         `Not recommended for: ${notRecFor}\n` +
@@ -355,7 +355,7 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
       `Spot price: $${Number(row.spot_price_usd_per_gpu).toFixed(4)}/GPU-hr` +
       (savings != null ? ` (~${savings.toFixed(0)}% below on-demand)` : "") + `\n` +
       `Spot type: ${COREWEAVE_SPOT_LABEL} (preemptible; no public eviction telemetry) | Risk: UNKNOWN\n` +
-      `Access: enterprise sales onboarding required — no self-serve spot API\n` +
+      `Access: enterprise sales onboarding required; no self-serve spot API\n` +
       `Recommended for: ${recFor}\n` +
       `Not recommended for: ${notRecFor}\n` +
       `Updated: ${row.fetched_at ?? now} | Source: Spoticker / CoreWeave pricing page scrape`

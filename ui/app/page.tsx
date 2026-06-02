@@ -23,7 +23,7 @@ export default async function Home() {
           </h1>
           <p className="text-[#8ec4a6] text-sm mt-1 max-w-2xl font-mono leading-relaxed">
             &gt;_ Compare spot prices and eviction risk across AWS, Azure, GCP, RunPod, Vast.ai,
-            CoreWeave, and Nebius — or ask the agentic layer for a workload-specific pick.
+            CoreWeave, and Nebius. Ask the agentic layer for a workload-specific pick.
           </p>
           <div className="flex items-center gap-2 pt-1">
             <span className="status-dot" />

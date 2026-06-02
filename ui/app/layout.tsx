@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Spoticker — Spot Matrix",
+  title: "Spoticker | Spot Matrix",
   description: "Spot pricing and eviction rates across AWS, Azure, and GCP",
 };
 

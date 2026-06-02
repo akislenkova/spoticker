@@ -189,7 +189,7 @@ async function fetchAzureEvictionLatestBatch(): Promise<
     .from("azure_spot_eviction_rates")
     .select("skuName, location, evictionRate")
     .eq("fetched_at", head.fetched_at)
-    // GPU SKUs only — CPU patterns like %as_v5% or %ds_v5% match thousands of rows
+    // GPU SKUs only - CPU patterns like %as_v5% or %ds_v5% match thousands of rows
     // and blow past PostgREST's 1000-row hard cap. CPU types fall back to telMap.
     .or(
       [
@@ -282,7 +282,7 @@ const GCP_GPU_FILTER = [
   "description.ilike.%H200%",
   "description.ilike.%B200%",
   "description.ilike.%B300%",
-  // CPU types — GCP billing catalog description prefixes
+  // CPU types - GCP billing catalog description prefixes
   "description.ilike.%N2D%",
   "description.ilike.%C2D%",
   "description.ilike.%T2A%",

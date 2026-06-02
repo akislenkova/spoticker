@@ -37,7 +37,7 @@ export default function CopyField({
           {copied ? "✓ Copied" : "Copy"}
         </button>
       </div>
-      <code className="block font-mono text-sm text-[#00ff88] break-all">{value || "—"}</code>
+      <code className="block font-mono text-sm text-[#00ff88] break-all">{value || "-"}</code>
       {hint && <p className="font-mono text-[10px] text-[#1e3028]">{hint}</p>}
     </div>
   );

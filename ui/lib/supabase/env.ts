@@ -12,7 +12,7 @@ export function detectSupabaseKeyFormat(key: string): SupabaseKeyFormat {
 function assertNotProjectUrl(value: string, varName: string): void {
   if (value.includes("supabase.co")) {
     throw new Error(
-      `${varName} must be an API key, not your project URL. Open spoticker at http://localhost:3000 or your Vercel URL — do not paste *.supabase.co into the browser.`
+      `${varName} must be an API key, not your project URL. Open spoticker at http://localhost:3000 or your Vercel URL. Do not paste *.supabase.co into the browser.`
     );
   }
 }

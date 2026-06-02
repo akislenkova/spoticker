@@ -48,19 +48,19 @@ const AWS_FAMILY: Record<string, GpuLabel> = {
   g6: "L4",
   g5: "A10G",
   g4dn: "T4",
-  // CPU families — AMD EPYC
+  // CPU families - AMD EPYC
   m7a: "CPU (AMD)",
   m6a: "CPU (AMD)",
   c7a: "CPU (AMD)",
   c6a: "CPU (AMD)",
   r7a: "CPU (AMD)",
-  // CPU families — Intel
+  // CPU families - Intel
   m7i: "CPU (Intel)",
   m6i: "CPU (Intel)",
   c7i: "CPU (Intel)",
   c6i: "CPU (Intel)",
   r7i: "CPU (Intel)",
-  // CPU families — ARM (AWS Graviton)
+  // CPU families - ARM (AWS Graviton)
   m7g: "CPU (ARM)",
   m6g: "CPU (ARM)",
   c7g: "CPU (ARM)",
@@ -86,7 +86,7 @@ const AZURE_PATTERNS: [RegExp, GpuLabel][] = [
   [/\bL4\b/i, "L4"],
   [/A10/i, "A10G"],
   [/T4/i, "T4"],
-  // CPU types — D-series only (representative family per architecture)
+  // CPU types - D-series only (representative family per architecture)
   [/Standard_D\d+a[sd]?s_v[45]/i, "CPU (AMD)"],    // e.g. Standard_D4as_v5
   [/Standard_D\d+p[ls]?s_v[45]/i, "CPU (ARM)"],    // e.g. Standard_D4ps_v5
   [/Standard_D\d+d?s_v5/i,        "CPU (Intel)"],   // e.g. Standard_D4s_v5
@@ -106,7 +106,7 @@ const GCP_PATTERNS: [RegExp, GpuLabel][] = [
   [/\bL4\b/i, "L4"],
   [/\bA10\b/i, "A10G"],
   [/\bT4\b/i, "T4"],
-  // CPU types — match GCP billing catalog description prefixes
+  // CPU types - match GCP billing catalog description prefixes
   [/\b(N2D|C2D)\b/i, "CPU (AMD)"],
   [/\bT2A\b/i, "CPU (ARM)"],
   [/\b(N2|C2|C3)\b/i, "CPU (Intel)"],
@@ -216,7 +216,7 @@ export function coreweaveGpu(labelOrModel: string): GpuLabel | null {
   return null;
 }
 
-/** Nebius preemptible VMs — no public eviction telemetry. */
+/** Nebius preemptible VMs: no public eviction telemetry. */
 export const NEBIUS_PREEMPTIBLE_LABEL = "preemptible";
 
 const NEBIUS_PATTERNS: [RegExp, GpuLabel][] = [

@@ -41,7 +41,7 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
         } else {
           setAwsStatus({ loading: false, connected: false });
           if (d.serverConfigured === false) {
-            setSpsError("Server AWS keys not configured — add SPOTTICKER_AWS_* to ui/.env.local");
+            setSpsError("Server AWS keys not configured. Add SPOTTICKER_AWS_* to ui/.env.local");
           } else if (d.lastError) {
             setSpsError(d.lastError);
           }
@@ -97,7 +97,7 @@ export default function MatrixWithSps({ data }: { data: MatrixData }) {
             </span>
           ) : (
             <span className="text-[#e08898]" title={spsError ?? undefined}>
-              {spsError ?? "SPS fetch failed — showing advisor eviction rates instead"}
+              {spsError ?? "SPS fetch failed, showing advisor eviction rates instead"}
             </span>
           )}
           <button

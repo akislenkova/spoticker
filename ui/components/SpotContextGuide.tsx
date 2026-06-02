@@ -12,7 +12,7 @@ export default function SpotContextGuide() {
         },
         {
           title: "Ask Spoticker (agentic)",
-          body: "Describe your job (hardware count, duration, batch vs. realtime, eviction tolerance). An agent reads current prices and risk data, then recommends regions—like a senior infra engineer, not just the cheapest cell.",
+          body: "Describe your job (hardware count, duration, batch vs. realtime, eviction tolerance). An agent reads current prices and risk data, then recommends regions like a senior infra engineer, not just the cheapest cell.",
         },
       ].map(({ title, body }) => (
         <div

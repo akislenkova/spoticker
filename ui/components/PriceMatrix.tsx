@@ -15,7 +15,7 @@ const AWS_SPS_INSTANCE: Partial<Record<GpuLabel, string>> = {
   L4: "g6.xlarge",
   A10G: "g5.xlarge",
   T4: "g4dn.xlarge",
-  // CPU — pick a representative mid-range size for SPS
+  // CPU - pick a representative mid-range size for SPS
   "CPU (AMD)": "m7a.xlarge",
   "CPU (Intel)": "m7i.xlarge",
   "CPU (ARM)": "m7g.xlarge",
@@ -145,7 +145,7 @@ function SummaryCell({
     return (
       <td className={SUMM_TD}>
         <div className="w-full h-[86px] flex items-center justify-center rounded border border-[rgba(255,255,255,0.05)] bg-transparent">
-          <span className="text-[#80b898] text-xs font-mono">—</span>
+          <span className="text-[#80b898] text-xs font-mono">-</span>
         </div>
       </td>
     );
@@ -252,7 +252,7 @@ function CloudPanel({
           {rows.map(({ region, cell, spsScore }) => {
             const eff = cloud === "aws" && awsUsesSps && spsScore != null;
             const color = eff ? spsColor(spsScore!) : cell.color;
-            const metricText = eff ? `${spsScore}/10` : cell.evictionLabel ?? "—";
+            const metricText = eff ? `${spsScore}/10` : cell.evictionLabel ?? "-";
 
             return (
               <tr key={region} className={cell.href ? "group" : ""}>

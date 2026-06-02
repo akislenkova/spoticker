@@ -16,7 +16,7 @@ const AWS_REGION = process.env.NEXT_PUBLIC_AWS_REGION ?? "us-east-1";
 const templateUrlReady =
   TEMPLATE_URL.startsWith("https://") && !TEMPLATE_URL.includes("YOUR_BUCKET");
 
-/** Standard “Create stack” wizard (upload template) — avoids broken Quick create URLs */
+/** Standard “Create stack” wizard (upload template): avoids broken Quick create URLs */
 const CF_CREATE_STACK_URL = `https://${AWS_REGION}.console.aws.amazon.com/cloudformation/home?region=${AWS_REGION}#/stacks/create/template`;
 
 const TEMPLATE_DOWNLOAD = "/api/aws/cfn-template";
@@ -152,7 +152,7 @@ export default function ConnectPage() {
           </p>
           <h1 className="text-2xl font-bold tracking-tight text-[#c8f0dc] cursor-blink">Connect AWS</h1>
           <p className="font-mono text-[#3a5a48] text-sm mt-1">
-            Deploy a read-only IAM role via CloudFormation — your AWS keys never leave AWS.
+            Deploy a read-only IAM role via CloudFormation. Your AWS keys never leave AWS.
           </p>
         </div>
 
@@ -262,7 +262,7 @@ export default function ConnectPage() {
                   hint="Paste into the ExternalId field in CloudFormation. Already saved in Spoticker."
                 />
                 <CopyField
-                  label="SpottickerRoleArn — paste this in AWS"
+                  label="SpottickerRoleArn"
                   value={SPOTTICKER_ROLE_ARN}
                   hint="Must be an ARN that exists in Spoticker’s AWS account (601883338057). Use root unless SpottickerAssumeRole is created."
                 />

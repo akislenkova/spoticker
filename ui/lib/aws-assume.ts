@@ -6,7 +6,7 @@ import {
 import { EC2Client, GetSpotPlacementScoresCommand } from "@aws-sdk/client-ec2";
 import { getSpottickerCredentials } from "@/lib/aws-credentials";
 
-/** Instance types used for GetSpotPlacementScores — one representative per hardware row. */
+/** Instance types used for GetSpotPlacementScores: one representative per hardware row. */
 const GPU_INSTANCE_TYPES = [
   // GPU
   "p5e.48xlarge",     // H200
@@ -17,13 +17,13 @@ const GPU_INSTANCE_TYPES = [
   "g6.xlarge",        // L4
   "g5.xlarge",        // A10G
   "g4dn.xlarge",      // T4
-  // CPU — AMD EPYC
+  // CPU - AMD EPYC
   "m7a.xlarge",
   "c7a.xlarge",
-  // CPU — Intel
+  // CPU - Intel
   "m7i.xlarge",
   "c7i.xlarge",
-  // CPU — ARM (Graviton)
+  // CPU - ARM (Graviton)
   "m7g.xlarge",
   "c7g.xlarge",
 ];
