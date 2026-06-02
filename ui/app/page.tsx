@@ -22,13 +22,13 @@ export default async function Home() {
             Spot Availability
           </h1>
           <p className="text-[#4a6a58] text-sm mt-1 max-w-2xl font-mono leading-relaxed">
-            &gt;_ Compare spot prices and eviction risk across AWS, Azure, and GCP — or ask the agentic
-            layer for a workload-specific pick.
+            &gt;_ Compare spot prices and eviction risk across AWS, Azure, GCP, RunPod, Vast.ai,
+            CoreWeave, and Nebius — or ask the agentic layer for a workload-specific pick.
           </p>
           <div className="flex items-center gap-2 pt-1">
             <span className="status-dot" />
             <span className="font-mono text-[10px] text-[rgba(0,255,136,0.4)] tracking-[0.2em] uppercase">
-              System Online · Monitoring AWS · Azure · GCP
+              System Online · Monitoring AWS · Azure · GCP · RunPod · Vast.ai · CoreWeave · Nebius
             </span>
           </div>
         </div>
@@ -50,7 +50,11 @@ export default async function Home() {
             <code className="mt-4 block text-xs text-[#2d4038] font-mono">
               cd aws &amp;&amp; python scraper.py<br />
               cd azure &amp;&amp; python scraper.py<br />
-              cd gcp &amp;&amp; python scraper.py
+              cd gcp &amp;&amp; python scraper.py<br />
+              cd runpod &amp;&amp; python scraper.py<br />
+              cd vast &amp;&amp; python scraper.py<br />
+              cd coreweave &amp;&amp; python scraper.py<br />
+              cd nebius &amp;&amp; python scraper.py
             </code>
           </div>
         ) : (
