@@ -8,6 +8,7 @@ import {
   GpuLabel,
   vastGpu,
   coreweaveGpu,
+  nebiusGpu,
   vastReliabilityLabel,
   vastReliabilityColor,
   azureEvictionKey,
@@ -16,6 +17,7 @@ import {
   evictionColor,
   RUNPOD_INTERRUPT_LABEL,
   COREWEAVE_SPOT_LABEL,
+  NEBIUS_PREEMPTIBLE_LABEL,
 } from "./gpu-map";
 
 export type RecommendationOption = {
@@ -55,6 +57,10 @@ const WORKLOAD_NOTES: Record<string, [string, string]> = {
                      "real-time inference, stateful training without checkpointing"],
   H100:             ["frontier model training, maximum throughput batch inference",
                      "cost-sensitive workloads, real-time serving where A100 suffices"],
+  B200:             ["next-gen Blackwell training, high-bandwidth multi-GPU clusters",
+                     "cost-sensitive workloads — use H200 or H100 instead"],
+  B300:             ["largest-scale frontier training, Blackwell Ultra memory/compute",
+                     "cost-sensitive workloads — use B200, H200, or H100 instead"],
   H200:             ["cutting-edge frontier training, HBM3e memory-bound workloads",
                      "cost-sensitive use cases — use H100 or A100 instead"],
   "CPU (AMD)":      ["CPU-bound batch jobs, data preprocessing, general-purpose compute",
@@ -149,6 +155,7 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
     runpodPricesResult,
     vastPricesResult,
     coreweavePricesResult,
+    nebiusPricesResult,
   ] = await Promise.all([
       supabase.rpc("latest_aws_spot_prices"),
       supabase.from("spot_bid_advisor").select("data").order("fetched_at", { ascending: false }).limit(1),
@@ -166,6 +173,8 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
             "skuName.ilike.%a100%",
             "skuName.ilike.%h100%",
             "skuName.ilike.%h200%",
+            "skuName.ilike.%b200%",
+            "skuName.ilike.%b300%",
             "skuName.ilike.%as_v4%",
             "skuName.ilike.%as_v5%",
             "skuName.ilike.%ps_v4%",
@@ -188,6 +197,8 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
             "description.ilike.%A100%",
             "description.ilike.%H100%",
             "description.ilike.%H200%",
+            "description.ilike.%B200%",
+            "description.ilike.%B300%",
             "description.ilike.%N2D%",
             "description.ilike.%C2D%",
             "description.ilike.%T2A%",
@@ -204,6 +215,9 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
       supabase
         .from("coreweave_spot_prices")
         .select("product_slug, region, model_name, gpu_label, spot_price_usd_per_gpu, spot_savings_pct, fetched_at"),
+      supabase
+        .from("nebius_spot_prices")
+        .select("platform_slug, region, model_name, gpu_label, spot_price_usd_per_gpu, spot_savings_pct, fetched_at"),
     ]);
 
   const advisorBlob = advisorResult.data?.[0]?.data?.spot_advisor ?? {};
@@ -345,6 +359,28 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
       `Recommended for: ${recFor}\n` +
       `Not recommended for: ${notRecFor}\n` +
       `Updated: ${row.fetched_at ?? now} | Source: Spoticker / CoreWeave pricing page scrape`
+    );
+  }
+
+  // Nebius pages (preemptible VMs; self-serve console)
+  for (const row of nebiusPricesResult.data ?? []) {
+    const gpu: GpuLabel | null =
+      (row.gpu_label as GpuLabel | null) ??
+      nebiusGpu(row.model_name ?? "");
+    if (!gpu || row.spot_price_usd_per_gpu == null) continue;
+    const savings = row.spot_savings_pct != null ? Number(row.spot_savings_pct) : null;
+    const [recFor, notRecFor] = WORKLOAD_NOTES[gpu] ?? ["general workloads", "real-time inference"];
+
+    pages.push(
+      `# ${gpu} preemptible ${row.region} (Nebius ${row.model_name})\n` +
+      `Cloud: Nebius | Platform: ${row.platform_slug} | Region: ${row.region} | Type: ${gpu}\n` +
+      `Preemptible price: $${Number(row.spot_price_usd_per_gpu).toFixed(4)}/GPU-hr` +
+      (savings != null ? ` (~${savings.toFixed(0)}% below on-demand)` : "") + `\n` +
+      `Spot type: ${NEBIUS_PREEMPTIBLE_LABEL} (preemptible; no public eviction telemetry) | Risk: UNKNOWN\n` +
+      `Access: self-serve via Nebius console\n` +
+      `Recommended for: ${recFor}\n` +
+      `Not recommended for: ${notRecFor}\n` +
+      `Updated: ${row.fetched_at ?? now} | Source: Spoticker / Nebius pricing docs`
     );
   }
 

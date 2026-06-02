@@ -14,6 +14,8 @@ BUNDLES_URL = "https://console.vast.ai/api/v0/bundles/"
 
 # Normalized GpuLabel values we persist (must match ui/lib/gpu-map.ts)
 GPU_LABELS = (
+    "B300",
+    "B200",
     "H200",
     "H100",
     "A100 80GB",
@@ -27,6 +29,8 @@ GPU_LABELS = (
 
 # Order: specific patterns before general (mirrors gpu-map.ts)
 _GPU_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"\bB300\b", re.I), "B300"),
+    (re.compile(r"\bB200\b", re.I), "B200"),
     (re.compile(r"\bH200\b", re.I), "H200"),
     (re.compile(r"\bH100\b", re.I), "H100"),
     (re.compile(r"A100.*80\s*GB", re.I), "A100 80GB"),

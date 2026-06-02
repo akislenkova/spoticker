@@ -1,0 +1,25 @@
+name: Scrape Nebius spot prices
+
+on:
+  schedule:
+    - cron: "5 * * * *"  # 5 past each hour (offset from RunPod/AWS at :15, CoreWeave at :30, Vast at :45)
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Nebius scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python nebius/scraper.py

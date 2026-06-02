@@ -8,6 +8,7 @@ import {
   runpodGpu,
   vastGpu,
   coreweaveGpu,
+  nebiusGpu,
   vastReliabilityLabel,
   vastReliabilityColor,
   azureEvictionKey,
@@ -16,6 +17,7 @@ import {
   evictionColor,
   RUNPOD_INTERRUPT_LABEL,
   COREWEAVE_SPOT_LABEL,
+  NEBIUS_PREEMPTIBLE_LABEL,
 } from "./gpu-map";
 import {
   awsEc2LaunchUrl,
@@ -24,6 +26,7 @@ import {
   runpodSpotDeployUrl,
   vastOfferSearchUrl,
   coreweavePricingUrl,
+  nebiusVmCreateUrl,
 } from "./cloud-links";
 
 export type CellData = {
@@ -35,7 +38,7 @@ export type CellData = {
 };
 
 export type MatrixColumn = {
-  cloud: "aws" | "azure" | "gcp" | "runpod" | "vast" | "coreweave";
+  cloud: "aws" | "azure" | "gcp" | "runpod" | "vast" | "coreweave" | "nebius";
   region: string;
   key: string;
 };
@@ -54,6 +57,7 @@ export type DataFreshness = {
   runpodPricesAt: string | null;
   vastPricesAt: string | null;
   coreweavePricesAt: string | null;
+  nebiusPricesAt: string | null;
 };
 
 export type MatrixData = {
@@ -197,6 +201,8 @@ async function fetchAzureEvictionLatestBatch(): Promise<
         "skuName.ilike.%a100%",
         "skuName.ilike.%h100%",
         "skuName.ilike.%h200%",
+        "skuName.ilike.%b200%",
+        "skuName.ilike.%b300%",
       ].join(",")
     );
 
@@ -274,6 +280,8 @@ const GCP_GPU_FILTER = [
   "description.ilike.%A100%",
   "description.ilike.%H100%",
   "description.ilike.%H200%",
+  "description.ilike.%B200%",
+  "description.ilike.%B300%",
   // CPU types — GCP billing catalog description prefixes
   "description.ilike.%N2D%",
   "description.ilike.%C2D%",
@@ -443,10 +451,54 @@ async function fetchCoreweave(): Promise<Map<string, CellEntry>> {
   return map;
 }
 
+// ── Nebius ───────────────────────────────────────────────────────────────────
+
+async function fetchNebius(): Promise<Map<string, CellEntry>> {
+  const { data, error } = await supabase
+    .from("nebius_spot_prices")
+    .select(
+      "platform_slug, region, model_name, gpu_label, spot_price_usd_per_gpu, spot_savings_pct"
+    );
+
+  if (error) console.error("[nebius] nebius_spot_prices:", error.message);
+
+  const map = new Map<string, CellEntry>();
+
+  for (const row of data ?? []) {
+    const gpu =
+      (row.gpu_label as GpuLabel | null) ??
+      nebiusGpu(row.model_name ?? "");
+    if (!gpu || row.spot_price_usd_per_gpu == null) continue;
+
+    const region = row.region as string;
+    const savings =
+      row.spot_savings_pct != null ? Number(row.spot_savings_pct) : null;
+    const evictionLabel =
+      savings != null
+        ? `${NEBIUS_PREEMPTIBLE_LABEL} · ~${savings.toFixed(0)}% off`
+        : NEBIUS_PREEMPTIBLE_LABEL;
+
+    const key = `${gpu}::nebius:${region}`;
+    const price = Number(row.spot_price_usd_per_gpu);
+    const existing = map.get(key);
+    if (!existing || price < existing.price) {
+      map.set(key, {
+        price,
+        evictionLabel,
+        color: "gray",
+        instanceLabel: row.model_name ?? row.platform_slug,
+        href: nebiusVmCreateUrl(),
+      });
+    }
+  }
+
+  return map;
+}
+
 // ── Scrape timestamps ─────────────────────────────────────────────────────────
 
 async function fetchFreshness(): Promise<DataFreshness> {
-  const [awsPrice, awsAdvisor, azurePrice, azureEviction, gcpPrice, runpodPrice, vastPrice, coreweavePrice] =
+  const [awsPrice, awsAdvisor, azurePrice, azureEviction, gcpPrice, runpodPrice, vastPrice, coreweavePrice, nebiusPrice] =
     await Promise.all([
     supabase
       .from("spot_price_history")
@@ -496,6 +548,12 @@ async function fetchFreshness(): Promise<DataFreshness> {
       .order("fetched_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("nebius_spot_prices")
+      .select("fetched_at")
+      .order("fetched_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   return {
@@ -507,6 +565,7 @@ async function fetchFreshness(): Promise<DataFreshness> {
     runpodPricesAt: runpodPrice.data?.fetched_at ?? null,
     vastPricesAt: vastPrice.data?.fetched_at ?? null,
     coreweavePricesAt: coreweavePrice.data?.fetched_at ?? null,
+    nebiusPricesAt: nebiusPrice.data?.fetched_at ?? null,
   };
 }
 
@@ -516,13 +575,14 @@ const DEV_CACHE_MS = 120_000;
 let devMatrixCache: { data: MatrixData; at: number } | null = null;
 
 async function buildMatrixInner(): Promise<MatrixData> {
-  const [awsMap, azureMap, gcpMap, runpodMap, vastMap, coreweaveMap, freshness] = await Promise.all([
+  const [awsMap, azureMap, gcpMap, runpodMap, vastMap, coreweaveMap, nebiusMap, freshness] = await Promise.all([
     fetchAws(),
     fetchAzure(),
     fetchGcp(),
     fetchRunpod(),
     fetchVast(),
     fetchCoreweave(),
+    fetchNebius(),
     fetchFreshness(),
   ]);
 
@@ -534,6 +594,7 @@ async function buildMatrixInner(): Promise<MatrixData> {
     ...runpodMap.keys(),
     ...vastMap.keys(),
     ...coreweaveMap.keys(),
+    ...nebiusMap.keys(),
   ]) {
     columnSet.add(key.split("::")[1]);
   }
@@ -542,7 +603,7 @@ async function buildMatrixInner(): Promise<MatrixData> {
     .sort((a, b) => {
       const [ca, ra] = a.split(":");
       const [cb, rb] = b.split(":");
-      const cloudOrder = { aws: 0, azure: 1, gcp: 2, runpod: 3, vast: 4, coreweave: 5 } as Record<string, number>;
+      const cloudOrder = { aws: 0, azure: 1, gcp: 2, runpod: 3, vast: 4, coreweave: 5, nebius: 6 } as Record<string, number>;
       return (cloudOrder[ca] ?? 9) - (cloudOrder[cb] ?? 9) || ra.localeCompare(rb);
     })
     .map((cr) => {
@@ -552,7 +613,7 @@ async function buildMatrixInner(): Promise<MatrixData> {
       return { cloud, region, key: cr };
     });
 
-  const allData = new Map([...awsMap, ...azureMap, ...gcpMap, ...runpodMap, ...vastMap, ...coreweaveMap]);
+  const allData = new Map([...awsMap, ...azureMap, ...gcpMap, ...runpodMap, ...vastMap, ...coreweaveMap, ...nebiusMap]);
 
   const rows: MatrixRow[] = GPU_ORDER.map((gpu) => ({
     gpu,

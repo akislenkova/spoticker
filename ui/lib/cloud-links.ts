@@ -42,3 +42,8 @@ export function vastOfferSearchUrl(
 export function coreweavePricingUrl(): string {
   return "https://www.coreweave.com/pricing";
 }
+
+/** Nebius console — create a preemptible GPU VM (platform not pre-selectable via URL). */
+export function nebiusVmCreateUrl(): string {
+  return "https://console.nebius.com/compute/instances/create";
+}

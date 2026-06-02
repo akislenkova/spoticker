@@ -38,6 +38,7 @@ const CLOUD_LABEL: Record<string, string> = {
   runpod: "RunPod",
   vast: "Vast.ai",
   coreweave: "CoreWeave",
+  nebius: "Nebius",
 };
 
 const CELL_BG: Record<CellColor, string> = {
@@ -205,6 +206,7 @@ function CloudPanel({
     : cloud === "runpod" ? "Interrupt notice"
     : cloud === "vast" ? "Host reliability"
     : cloud === "coreweave" ? "Spot type"
+    : cloud === "nebius" ? "Spot type"
     : "Eviction rate (advisor)";
 
   return (
@@ -277,13 +279,14 @@ const AWS_METRIC_SUB: Record<"sps" | "eviction", string> = {
   eviction: "Eviction rate (advisor)",
 };
 
-const CLOUDS: Array<"aws" | "azure" | "gcp" | "runpod" | "vast" | "coreweave"> = [
+const CLOUDS: Array<"aws" | "azure" | "gcp" | "runpod" | "vast" | "coreweave" | "nebius"> = [
   "aws",
   "azure",
   "gcp",
   "runpod",
   "vast",
   "coreweave",
+  "nebius",
 ];
 
 export default function PriceMatrix({
@@ -337,6 +340,8 @@ export default function PriceMatrix({
                           ? "Host reliability"
                           : cloud === "coreweave"
                             ? "Preemptible spot"
+                            : cloud === "nebius"
+                              ? "Preemptible spot"
                             : "Eviction rate"}
                 </div>
               </th>

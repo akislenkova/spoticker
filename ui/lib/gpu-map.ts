@@ -1,4 +1,6 @@
 export type GpuLabel =
+  | "B300"
+  | "B200"
   | "H200"
   | "H100"
   | "A100 80GB"
@@ -13,6 +15,8 @@ export type GpuLabel =
   | "CPU (ARM)";
 
 export const GPU_ORDER: GpuLabel[] = [
+  "B300",
+  "B200",
   "H200",
   "H100",
   "A100 80GB",
@@ -62,6 +66,8 @@ const AWS_FAMILY: Record<string, GpuLabel> = {
 // Azure arm_sku_name pattern keywords → hardware type
 // Order matters: more specific patterns first
 const AZURE_PATTERNS: [RegExp, GpuLabel][] = [
+  [/B300/i, "B300"],
+  [/B200/i, "B200"],
   [/H200/i, "H200"],
   [/H100/i, "H100"],
   // All Azure A100 is 80 GB (both NC A100 v4 PCIe and ND SXM4 80 GB).
@@ -84,6 +90,8 @@ const AZURE_PATTERNS: [RegExp, GpuLabel][] = [
 // GCP description keywords → hardware type
 // Order matters: more specific patterns first
 const GCP_PATTERNS: [RegExp, GpuLabel][] = [
+  [/\bB300\b/i, "B300"],
+  [/\bB200\b/i, "B200"],
   [/\bH200\b/i, "H200"],
   [/\bH100\b/i, "H100"],
   [/A100.*80GB/i, "A100 80GB"],
@@ -125,6 +133,8 @@ export function gcpGpu(description: string): GpuLabel | null {
 
 // RunPod gpuTypes.id → hardware type (order: specific before general)
 const RUNPOD_PATTERNS: [RegExp, GpuLabel][] = [
+  [/\bB300\b/i, "B300"],
+  [/\bB200\b/i, "B200"],
   [/\bH200\b/i, "H200"],
   [/\bH100\b/i, "H100"],
   [/A100.*80\s*GB/i, "A100 80GB"],
@@ -150,6 +160,8 @@ export const RUNPOD_INTERRUPT_LABEL = "5s SIGTERM";
 
 // Vast.ai gpu_name → hardware type (order: specific before general)
 const VAST_PATTERNS: [RegExp, GpuLabel][] = [
+  [/\bB300\b/i, "B300"],
+  [/\bB200\b/i, "B200"],
   [/\bH200\b/i, "H200"],
   [/\bH100\b/i, "H100"],
   [/A100.*80\s*GB/i, "A100 80GB"],
@@ -175,6 +187,8 @@ export const COREWEAVE_SPOT_LABEL = "preemptible";
 
 // CoreWeave model_name / gpu_label from scraper → hardware type (order: specific first)
 const COREWEAVE_PATTERNS: [RegExp, GpuLabel][] = [
+  [/\bB300\b/i, "B300"],
+  [/\bB200\b/i, "B200"],
   [/\bH200\b/i, "H200"],
   [/\bH100\b/i, "H100"],
   [/A100.*80\s*GB/i, "A100 80GB"],
@@ -192,6 +206,32 @@ const COREWEAVE_PATTERNS: [RegExp, GpuLabel][] = [
 
 export function coreweaveGpu(labelOrModel: string): GpuLabel | null {
   for (const [re, gpu] of COREWEAVE_PATTERNS) {
+    if (re.test(labelOrModel)) return gpu;
+  }
+  return null;
+}
+
+/** Nebius preemptible VMs — no public eviction telemetry. */
+export const NEBIUS_PREEMPTIBLE_LABEL = "preemptible";
+
+const NEBIUS_PATTERNS: [RegExp, GpuLabel][] = [
+  [/\bB300\b/i, "B300"],
+  [/\bB200\b/i, "B200"],
+  [/\bH200\b/i, "H200"],
+  [/\bH100\b/i, "H100"],
+  [/A100.*80\s*GB/i, "A100 80GB"],
+  [/A100.*40\s*GB/i, "A100 40GB"],
+  [/\bA100\b/i, "A100 80GB"],
+  [/\bV100\b/i, "V100"],
+  [/\bL40S\b/i, "L40S"],
+  [/\bL40\b/i, "L40S"],
+  [/\bL4\b/i, "L4"],
+  [/\bA10\b/i, "A10G"],
+  [/\bT4\b/i, "T4"],
+];
+
+export function nebiusGpu(labelOrModel: string): GpuLabel | null {
+  for (const [re, gpu] of NEBIUS_PATTERNS) {
     if (re.test(labelOrModel)) return gpu;
   }
   return null;
