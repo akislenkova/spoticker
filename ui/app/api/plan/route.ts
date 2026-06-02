@@ -29,9 +29,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(data);
   } catch (err) {
-    console.error("/api/plan error", err);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("/api/plan error", message);
     return NextResponse.json(
-      { error: "Plan service unavailable. Make sure `uvicorn app.main:app --port 8001` is running." },
+      { error: `Plan service unreachable: ${message}` },
       { status: 503 }
     );
   }
