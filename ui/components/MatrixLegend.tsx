@@ -126,13 +126,13 @@ export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
         <p className="mt-2 font-mono text-[#3a5a48] leading-relaxed text-[11px]">
           Prices from the{" "}
           <strong className="font-medium text-[#5e8a6e]">GCP Cloud Billing Catalog</strong> for
-          preemptible GPU SKUs. No eviction data available — all cells shown in gray.
+          preemptible SKUs. No eviction data available — all cells shown in gray.
         </p>
         <ul className="mt-2 space-y-1">
           <LegendRow color="gray" label="All cells" detail="price only, no eviction signal" />
         </ul>
         <p className="mt-2 font-mono text-[11px] text-[#1e3028]">
-          Prices are per-GPU/hour from the billing catalog and update when GCP changes them.
+          Prices are per-hour from the billing catalog and update when GCP changes them.
         </p>
       </Panel>
     </div>

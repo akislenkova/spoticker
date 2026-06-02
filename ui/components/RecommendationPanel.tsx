@@ -152,7 +152,7 @@ export default function RecommendationPanel() {
         {isEmpty ? (
           <div className="w-full max-w-lg space-y-4 text-center">
             <p className="font-mono text-[#5e8a6e] text-sm">
-              &gt;_ What GPU spot instance fits your workload?
+              &gt;_ What spot instance fits your workload?
             </p>
             <p className="font-mono text-[#2d4038] text-[11px] -mt-2">
               Live pricing and eviction data across AWS, Azure, and GCP — analyzed for your workload.
@@ -270,7 +270,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
               </div>
               <div className="mt-1 font-mono text-sm font-semibold text-[#00ff88]">{opt.gpu}</div>
               <div className="font-mono text-[11px] text-[#4a6a58]">{opt.region}</div>
-              <div className="mt-2 font-mono text-sm text-[#a0dfc0]">${opt.price.toFixed(4)}/GPU</div>
+              <div className="mt-2 font-mono text-sm text-[#a0dfc0]">${opt.price.toFixed(4)}/hr</div>
               <div className="mt-0.5 font-mono text-[10px] text-[#3a5a48]">Risk: {opt.riskTier}</div>
               <div className="mt-1.5 font-mono text-[10px] text-[#2d4038]">
                 {opt.evictionLabel ?? "No eviction data"}

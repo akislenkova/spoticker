@@ -16,10 +16,10 @@ export default async function Home() {
         {/* Hero */}
         <div className="animate-fade-in-up space-y-2">
           <p className="font-mono text-[10px] tracking-[0.25em] text-[rgba(0,255,136,0.45)] uppercase">
-            // GPU Spot Market Intelligence
+            // Spot Market Intelligence
           </p>
           <h1 className="text-3xl font-bold tracking-tight text-[#c8f0dc] cursor-blink">
-            GPU Spot Availability
+            Spot Availability
           </h1>
           <p className="text-[#4a6a58] text-sm mt-1 max-w-2xl font-mono leading-relaxed">
             &gt;_ Compare spot prices and eviction risk across AWS, Azure, and GCP — or ask the agentic

@@ -15,7 +15,7 @@ export default function NotFound() {
             href="/"
             className="px-4 py-2 rounded border border-[rgba(0,255,136,0.3)] bg-[rgba(0,255,136,0.08)] font-mono font-medium text-[#00ff88] hover:bg-[rgba(0,255,136,0.14)] hover:shadow-[0_0_12px_rgba(0,255,136,0.12)] transition-all"
           >
-            GPU matrix
+            spot matrix
           </Link>
           <Link
             href="/connect"

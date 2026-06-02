@@ -11,7 +11,7 @@ const OBJECTIVES: { value: Objective; label: string; description: string }[] = [
   {
     value: "cost",
     label: "Lowest cost",
-    description: "Cheapest spot available for your GPU requirements.",
+    description: "Cheapest spot available for your requirements.",
   },
   {
     value: "cost_reliability",
@@ -80,7 +80,7 @@ export default function PlanPage() {
             <span className="font-mono text-[10px] tracking-widest uppercase text-[rgba(0,255,136,0.6)]">Plan Mode</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-[#c8f0dc]">
-            GPU Placement Advisor
+            Spot Placement Advisor
           </h1>
           <p className="font-mono text-sm text-[#4a6a58] max-w-xl leading-relaxed">
             &gt;_ Drop in a Dockerfile, k8s manifest, Helm values, or Terraform — get a placement

@@ -93,7 +93,7 @@ const RISK_TIER: Record<string, string> = {
   green: "LOW", yellow: "MEDIUM", red: "HIGH", gray: "UNKNOWN",
 };
 
-const SYSTEM_PROMPT = `You are Spoticker's recommendation engine. You have live GPU spot pricing data from the Spoticker catalog.
+const SYSTEM_PROMPT = `You are Spoticker's recommendation engine. You have live spot pricing data from the Spoticker catalog.
 
 Given a workload description and a set of live pricing pages, return a specific, opinionated recommendation like a senior infra engineer would give.
 
@@ -103,7 +103,7 @@ Rules:
 - Be opinionated: pick one winner, explain why, acknowledge the tradeoff
 - Cite actual prices and eviction rates from the data — do not hallucinate numbers
 - If the workload is risky on spot, warn and suggest on-demand or reserved as fallback
-- If no exact GPU match exists in the data, recommend the closest available option and note the gap
+- If no exact match exists in the data, recommend the closest available option and note the gap
 - GCP prices are per-GPU/hour (accelerator only); total VM cost will be higher — note this when recommending GCP
 
 Return ONLY a valid JSON object — no markdown wrapper, no text outside the JSON:
@@ -202,12 +202,12 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
     const evictionLabel = entry != null ? awsRangeLabel(entry.r) : null;
     const color = entry != null ? awsRangeColor(entry.r) : "gray";
     const riskTier = RISK_TIER[color];
-    const [recFor, notRecFor] = WORKLOAD_NOTES[gpu] ?? ["general GPU workloads", "real-time inference"];
+    const [recFor, notRecFor] = WORKLOAD_NOTES[gpu] ?? ["general workloads", "real-time inference"];
 
     pages.push(
       `# ${gpu} spot ${row.region} (AWS ${row.instance_type})\n` +
-      `Cloud: AWS | Instance: ${row.instance_type} | GPU: ${gpu} | GPUs/instance: ${gpuCount}\n` +
-      `Spot price: $${Number(row.price_usd).toFixed(4)}/hr per GPU ($${(Number(row.price_usd) * gpuCount).toFixed(2)}/hr total)\n` +
+      `Cloud: AWS | Instance: ${row.instance_type} | Type: ${gpu} | Count/instance: ${gpuCount}\n` +
+      `Spot price: $${Number(row.price_usd).toFixed(4)}/hr per unit ($${(Number(row.price_usd) * gpuCount).toFixed(2)}/hr total)\n` +
       `Eviction rate (7-day): ${evictionLabel ?? "unknown"} | Risk: ${riskTier}\n` +
       `Recommended for: ${recFor}\n` +
       `Not recommended for: ${notRecFor}\n` +
@@ -223,12 +223,12 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
     const evLabel = azureEvMap.get(azureEvictionKey(sku, row.region)) ?? null;
     const color = evLabel ? evictionColor(evLabel) : "gray";
     const riskTier = RISK_TIER[color];
-    const [recFor, notRecFor] = WORKLOAD_NOTES[gpu] ?? ["general GPU workloads", "real-time inference"];
+    const [recFor, notRecFor] = WORKLOAD_NOTES[gpu] ?? ["general workloads", "real-time inference"];
 
     pages.push(
       `# ${gpu} spot ${row.region} (Azure ${sku})\n` +
-      `Cloud: Azure | SKU: ${sku} | GPU: ${gpu}\n` +
-      `Spot price: $${Number(row.retail_price).toFixed(4)}/hr per GPU\n` +
+      `Cloud: Azure | SKU: ${sku} | Type: ${gpu}\n` +
+      `Spot price: $${Number(row.retail_price).toFixed(4)}/hr\n` +
       `Eviction rate: ${evLabel ?? "unknown"} | Risk: ${riskTier}\n` +
       `Recommended for: ${recFor}\n` +
       `Not recommended for: ${notRecFor}\n` +
@@ -242,13 +242,13 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
     if (!gpu || row.price_usd_per_hour == null) continue;
     const rawRegions = typeof row.regions === "string" ? JSON.parse(row.regions) : row.regions;
     const regions: string[] = Array.isArray(rawRegions) ? rawRegions : [];
-    const [recFor, notRecFor] = WORKLOAD_NOTES[gpu] ?? ["general GPU workloads", "real-time inference"];
+    const [recFor, notRecFor] = WORKLOAD_NOTES[gpu] ?? ["general workloads", "real-time inference"];
 
     for (const region of regions) {
       pages.push(
         `# ${gpu} preemptible ${region} (GCP)\n` +
-        `Cloud: GCP | Description: ${row.description} | GPU: ${gpu}\n` +
-        `Preemptible price: $${Number(row.price_usd_per_hour).toFixed(4)}/hr per GPU (accelerator cost only — add VM CPU/RAM cost)\n` +
+        `Cloud: GCP | Description: ${row.description} | Type: ${gpu}\n` +
+        `Preemptible price: $${Number(row.price_usd_per_hour).toFixed(4)}/hr (accelerator cost only — add VM CPU/RAM cost)\n` +
         `Eviction rate: N/A (no public GCP preemptible eviction data) | Risk: UNKNOWN\n` +
         `Recommended for: ${recFor}\n` +
         `Not recommended for: ${notRecFor}\n` +

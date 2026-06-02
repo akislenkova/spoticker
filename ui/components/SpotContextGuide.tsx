@@ -4,15 +4,15 @@ export default function SpotContextGuide() {
       {[
         {
           title: "Spot availability matrix",
-          body: "Cheapest spot price per GPU type and region. Cell color reflects eviction risk (Azure eviction %, or AWS Spot Placement Score when your account is connected). Green = safer for batch work; red = frequent interruptions.",
+          body: "Cheapest spot price per type and region. Cell color reflects eviction risk (Azure eviction %, or AWS Spot Placement Score when your account is connected). Green = safer for batch work; red = frequent interruptions.",
         },
         {
           title: "Context catalog",
-          body: "Live pricing is ingested as one page per GPU×region, with workload fit notes (what spot is good for vs. not). Same structured context powers the agentic recommendation layer.",
+          body: "Live pricing is ingested as one page per type×region, with workload fit notes (what spot is good for vs. not). Same structured context powers the agentic recommendation layer.",
         },
         {
           title: "Ask Spoticker (agentic)",
-          body: "Describe your job (GPU count, duration, batch vs. realtime, eviction tolerance). An agent reads current prices and risk data, then recommends regions—like a senior infra engineer, not just the cheapest cell.",
+          body: "Describe your job (hardware count, duration, batch vs. realtime, eviction tolerance). An agent reads current prices and risk data, then recommends regions—like a senior infra engineer, not just the cheapest cell.",
         },
       ].map(({ title, body }) => (
         <div
