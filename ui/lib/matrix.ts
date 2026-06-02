@@ -175,11 +175,11 @@ async function fetchAzurePricesLatestBatch(): Promise<AzurePriceRow[]> {
 }
 
 async function fetchAzure(): Promise<Map<string, CellEntry>> {
-  const pricesRpc = supabase.rpc("latest_azure_spot_prices");
-
-  const [{ data: pricesRpcData, error: pricesErr }, { data: evictionRows, error: evErr }, { data: telemetry, error: telErr }] =
+  // Skip the RPC (PostgREST 1000-row cap cuts off GPU rows when CPU SKUs are present).
+  // Always use the direct latest-batch query which is not cap-limited.
+  const [prices, { data: evictionRows, error: evErr }, { data: telemetry, error: telErr }] =
     await Promise.all([
-      pricesRpc,
+      fetchAzurePricesLatestBatch(),
       // RPC is capped at 1000 rows by PostgREST; query GPU SKUs directly instead
       supabase
         .from("azure_spot_eviction_rates")
@@ -205,12 +205,6 @@ async function fetchAzure(): Promise<Map<string, CellEntry>> {
         .limit(2000),
       supabase.from("eviction_rates_30d").select("region, evictions_per_hour"),
     ]);
-
-  let prices = pricesRpcData;
-  if (pricesErr) {
-    console.error("[azure] latest_azure_spot_prices:", pricesErr.message);
-    prices = await fetchAzurePricesLatestBatch();
-  }
 
   if (evErr) console.error("[azure] azure_spot_eviction_rates:", evErr.message);
   if (telErr) console.error("[azure] eviction_rates_30d:", telErr.message);
@@ -244,7 +238,7 @@ async function fetchAzure(): Promise<Map<string, CellEntry>> {
     if (!gpu) continue;
 
     const ev =
-      rgMap.get(azureEvictionKey(row.arm_sku_name, row.region)) ??
+      rgMap.get(azureEvictionKey(sku, row.region)) ??
       telMap.get(row.region.toLowerCase()) ??
       null;
 
