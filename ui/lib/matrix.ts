@@ -174,43 +174,60 @@ async function fetchAzurePricesLatestBatch(): Promise<AzurePriceRow[]> {
   return [...byKey.values()];
 }
 
+/** Fetch only the latest-batch eviction rows (avoids the PostgREST 1000-row hard cap). */
+async function fetchAzureEvictionLatestBatch(): Promise<
+  { skuName: string; location: string; evictionRate: string }[]
+> {
+  const { data: head } = await supabase
+    .from("azure_spot_eviction_rates")
+    .select("fetched_at")
+    .order("fetched_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!head?.fetched_at) return [];
+
+  const { data, error } = await supabase
+    .from("azure_spot_eviction_rates")
+    .select("skuName, location, evictionRate")
+    .eq("fetched_at", head.fetched_at)
+    .or(
+      [
+        "skuName.ilike.%t4%",
+        "skuName.ilike.%a10%",
+        "skuName.ilike.%l4%",
+        "skuName.ilike.%l40s%",
+        "skuName.ilike.%v100%",
+        "skuName.ilike.%a100%",
+        "skuName.ilike.%h100%",
+        "skuName.ilike.%h200%",
+        "skuName.ilike.%as_v4%",
+        "skuName.ilike.%as_v5%",
+        "skuName.ilike.%ps_v4%",
+        "skuName.ilike.%ps_v5%",
+        "skuName.ilike.%ds_v5%",
+      ].join(",")
+    );
+
+  if (error) {
+    console.error("[azure] azure_spot_eviction_rates latest batch:", error.message);
+    return [];
+  }
+  return (data ?? []) as { skuName: string; location: string; evictionRate: string }[];
+}
+
 async function fetchAzure(): Promise<Map<string, CellEntry>> {
-  // Skip the RPC (PostgREST 1000-row cap cuts off GPU rows when CPU SKUs are present).
-  // Always use the direct latest-batch query which is not cap-limited.
-  const [prices, { data: evictionRows, error: evErr }, { data: telemetry, error: telErr }] =
+  const [prices, evictionRows, { data: telemetry, error: telErr }] =
     await Promise.all([
       fetchAzurePricesLatestBatch(),
-      // RPC is capped at 1000 rows by PostgREST; query GPU SKUs directly instead
-      supabase
-        .from("azure_spot_eviction_rates")
-        .select("skuName, location, evictionRate, fetched_at")
-        .or(
-          [
-            "skuName.ilike.%t4%",
-            "skuName.ilike.%a10%",
-            "skuName.ilike.%l4%",
-            "skuName.ilike.%l40s%",
-            "skuName.ilike.%v100%",
-            "skuName.ilike.%a100%",
-            "skuName.ilike.%h100%",
-            "skuName.ilike.%h200%",
-            "skuName.ilike.%as_v4%",
-            "skuName.ilike.%as_v5%",
-            "skuName.ilike.%ps_v4%",
-            "skuName.ilike.%ps_v5%",
-            "skuName.ilike.%ds_v5%",
-          ].join(",")
-        )
-        .order("fetched_at", { ascending: false })
-        .limit(2000),
+      fetchAzureEvictionLatestBatch(),
       supabase.from("eviction_rates_30d").select("region, evictions_per_hour"),
     ]);
 
-  if (evErr) console.error("[azure] azure_spot_eviction_rates:", evErr.message);
   if (telErr) console.error("[azure] eviction_rates_30d:", telErr.message);
 
   const rgMap = new Map<string, { label: string; color: CellColor }>();
-  for (const e of evictionRows ?? []) {
+  for (const e of evictionRows) {
     if (!e.skuName || !e.location) continue;
     const key = azureEvictionKey(e.skuName, e.location);
     if (rgMap.has(key)) continue; // keep newest (rows sorted by fetched_at desc)
