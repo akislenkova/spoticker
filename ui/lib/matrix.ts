@@ -191,6 +191,8 @@ async function fetchAzureEvictionLatestBatch(): Promise<
     .from("azure_spot_eviction_rates")
     .select("skuName, location, evictionRate")
     .eq("fetched_at", head.fetched_at)
+    // GPU SKUs only — CPU patterns like %as_v5% or %ds_v5% match thousands of rows
+    // and blow past PostgREST's 1000-row hard cap. CPU types fall back to telMap.
     .or(
       [
         "skuName.ilike.%t4%",
@@ -201,11 +203,6 @@ async function fetchAzureEvictionLatestBatch(): Promise<
         "skuName.ilike.%a100%",
         "skuName.ilike.%h100%",
         "skuName.ilike.%h200%",
-        "skuName.ilike.%as_v4%",
-        "skuName.ilike.%as_v5%",
-        "skuName.ilike.%ps_v4%",
-        "skuName.ilike.%ps_v5%",
-        "skuName.ilike.%ds_v5%",
       ].join(",")
     );
 
