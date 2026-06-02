@@ -64,10 +64,9 @@ const AWS_FAMILY: Record<string, GpuLabel> = {
 const AZURE_PATTERNS: [RegExp, GpuLabel][] = [
   [/H200/i, "H200"],
   [/H100/i, "H100"],
-  // A100 80GB: ND series (SXM4 80 GB) — check before generic A100
-  [/A100.*80/i, "A100 80GB"],
-  [/nd.*A100/i, "A100 80GB"],
-  [/A100/i, "A100 40GB"],
+  // All Azure A100 is 80 GB (both NC A100 v4 PCIe and ND SXM4 80 GB).
+  // Azure has no 40 GB A100 SKUs.
+  [/A100/i, "A100 80GB"],
   [/V100/i, "V100"],
   [/L40S/i, "L40S"],
   [/L4/i, "L4"],
