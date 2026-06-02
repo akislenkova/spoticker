@@ -33,13 +33,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_CORS_ORIGINS = [o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()]
+if not _CORS_ORIGINS:
+    _CORS_ORIGINS = ["http://localhost:3000", "https://*.vercel.app"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://spoticker.com",
-        "https://*.vercel.app",
-    ],
+    allow_origins=_CORS_ORIGINS,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_methods=["POST", "GET", "OPTIONS"],
     allow_headers=["*"],
 )
