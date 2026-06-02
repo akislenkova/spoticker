@@ -10,7 +10,7 @@ export type GpuLabel =
   | "T4"
   | "CPU (AMD)"
   | "CPU (Intel)"
-  | "CPU (Graviton)";
+  | "CPU (ARM)";
 
 export const GPU_ORDER: GpuLabel[] = [
   "H200",
@@ -24,7 +24,7 @@ export const GPU_ORDER: GpuLabel[] = [
   "T4",
   "CPU (AMD)",
   "CPU (Intel)",
-  "CPU (Graviton)",
+  "CPU (ARM)",
 ];
 
 // AWS instance family prefix → hardware type
@@ -51,12 +51,12 @@ const AWS_FAMILY: Record<string, GpuLabel> = {
   c7i: "CPU (Intel)",
   c6i: "CPU (Intel)",
   r7i: "CPU (Intel)",
-  // CPU families — Graviton (ARM)
-  m7g: "CPU (Graviton)",
-  m6g: "CPU (Graviton)",
-  c7g: "CPU (Graviton)",
-  c6g: "CPU (Graviton)",
-  r7g: "CPU (Graviton)",
+  // CPU families — ARM (AWS Graviton)
+  m7g: "CPU (ARM)",
+  m6g: "CPU (ARM)",
+  c7g: "CPU (ARM)",
+  c6g: "CPU (ARM)",
+  r7g: "CPU (ARM)",
 };
 
 // Azure arm_sku_name pattern keywords → hardware type
@@ -75,7 +75,7 @@ const AZURE_PATTERNS: [RegExp, GpuLabel][] = [
   // CPU types — AMD EPYC (as_v suffix pattern)
   [/Standard_[a-z]\d+a[sd]?s_v[45]/i, "CPU (AMD)"],
   // CPU types — ARM Ampere Altra (ps_v suffix pattern)
-  [/Standard_[a-z]\d+p[ls]?s_v[45]/i, "CPU (Graviton)"],
+  [/Standard_[a-z]\d+p[ls]?s_v[45]/i, "CPU (ARM)"],
   // CPU types — Intel (s_v suffix, no a/p modifier before s)
   [/Standard_[a-z]\d+d?s_v5/i, "CPU (Intel)"],
 ];
@@ -94,7 +94,7 @@ const GCP_PATTERNS: [RegExp, GpuLabel][] = [
   [/\bT4\b/i, "T4"],
   // CPU types — match GCP billing catalog description prefixes
   [/\b(N2D|C2D)\b/i, "CPU (AMD)"],
-  [/\bT2A\b/i, "CPU (Graviton)"],
+  [/\bT2A\b/i, "CPU (ARM)"],
   [/\b(N2|C2|C3)\b/i, "CPU (Intel)"],
 ];
 

@@ -18,7 +18,7 @@ const AWS_SPS_INSTANCE: Partial<Record<GpuLabel, string>> = {
   // CPU — pick a representative mid-range size for SPS
   "CPU (AMD)": "m7a.xlarge",
   "CPU (Intel)": "m7i.xlarge",
-  "CPU (Graviton)": "m7g.xlarge",
+  "CPU (ARM)": "m7g.xlarge",
 };
 
 function spsScoreForCell(

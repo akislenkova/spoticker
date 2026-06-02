@@ -23,7 +23,7 @@ const GPU_INSTANCE_TYPES = [
   // CPU — Intel
   "m7i.xlarge",
   "c7i.xlarge",
-  // CPU — Graviton (ARM)
+  // CPU — ARM (Graviton)
   "m7g.xlarge",
   "c7g.xlarge",
 ];

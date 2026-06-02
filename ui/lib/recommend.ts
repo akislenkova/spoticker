@@ -53,7 +53,7 @@ const WORKLOAD_NOTES: Record<string, [string, string]> = {
                      "GPU-accelerated training or inference"],
   "CPU (Intel)":    ["CPU-bound batch jobs, data preprocessing, general-purpose compute",
                      "GPU-accelerated training or inference"],
-  "CPU (Graviton)": ["cost-optimised CPU workloads, Arm-native software, CI/CD",
+  "CPU (ARM)": ["cost-optimised CPU workloads, Arm-native software, CI/CD",
                      "x86-only software, GPU-accelerated workloads"],
 };
 
