@@ -22,7 +22,7 @@ function LegendRow({
       <span>
         <span className="text-[#7aab8e] font-mono text-[11px]">{label}</span>
         {detail ? (
-          <span className="font-mono text-[11px] text-[#2d4038]"> — {detail}</span>
+          <span className="font-mono text-[11px] text-[#80b898]"> — {detail}</span>
         ) : null}
       </span>
     </li>
@@ -52,18 +52,18 @@ export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
               Spot Placement Score
             </span>
           ) : awsMetric === "eviction" ? (
-            <span className="rounded border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase tracking-widest text-[#3a5a48]">
+            <span className="rounded border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase tracking-widest text-[#80b898]">
               Eviction rate
             </span>
           ) : (
-            <span className="font-mono text-[#1e3028]">…</span>
+            <span className="font-mono text-[#80b898]">…</span>
           )}
         </div>
         {awsMetric === "sps" ? (
           <>
-            <p className="mt-2 font-mono text-[#3a5a48] leading-relaxed text-[11px]">
+            <p className="mt-2 font-mono text-[#80b898] leading-relaxed text-[11px]">
               Cell color uses your account&apos;s{" "}
-              <strong className="font-medium text-[#5e8a6e]">Spot Placement Score</strong> (1–10).
+              <strong className="font-medium text-[#8ec4a6]">Spot Placement Score</strong> (1–10).
               Higher = better odds of getting spot capacity in that region.
             </p>
             <ul className="mt-2 space-y-1">
@@ -71,15 +71,15 @@ export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
               <LegendRow color="yellow" label="5–7" detail="medium placement" />
               <LegendRow color="red" label="1–4" detail="low placement (risky)" />
             </ul>
-            <p className="mt-2 font-mono text-[11px] text-[#1e3028]">
+            <p className="mt-2 font-mono text-[11px] text-[#80b898]">
               Small line under the score = AWS advisor eviction % (reference only).
             </p>
           </>
         ) : awsMetric === "eviction" ? (
           <>
-            <p className="mt-2 font-mono text-[#3a5a48] leading-relaxed text-[11px]">
+            <p className="mt-2 font-mono text-[#80b898] leading-relaxed text-[11px]">
               Cell color uses AWS Spot Advisor{" "}
-              <strong className="font-medium text-[#5e8a6e]">7-day eviction frequency</strong>.
+              <strong className="font-medium text-[#8ec4a6]">7-day eviction frequency</strong>.
               Lower % = greener cell.
             </p>
             <ul className="mt-2 space-y-1">
@@ -87,12 +87,12 @@ export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
               <LegendRow color="yellow" label="5–15%" detail="medium eviction" />
               <LegendRow color="red" label="&gt;15%" detail="high eviction" />
             </ul>
-            <p className="mt-2 font-mono text-[11px] text-[#1e3028]">
+            <p className="mt-2 font-mono text-[11px] text-[#80b898]">
               Connect AWS to replace colors with live Spot Placement Scores.
             </p>
           </>
         ) : (
-          <p className="mt-2 font-mono text-[11px] text-[#1e3028]">Loading AWS metric…</p>
+          <p className="mt-2 font-mono text-[11px] text-[#80b898]">Loading AWS metric…</p>
         )}
       </Panel>
 
@@ -103,9 +103,9 @@ export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
             Eviction rate
           </span>
         </div>
-        <p className="mt-2 font-mono text-[#3a5a48] leading-relaxed text-[11px]">
+        <p className="mt-2 font-mono text-[#80b898] leading-relaxed text-[11px]">
           Cell color is Azure Resource Graph{" "}
-          <strong className="font-medium text-[#5e8a6e]">spot eviction %</strong> for that SKU and
+          <strong className="font-medium text-[#8ec4a6]">spot eviction %</strong> for that SKU and
           region. Lower % = greener cell.
         </p>
         <ul className="mt-2 space-y-1">
@@ -123,9 +123,9 @@ export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
             Host reliability
           </span>
         </div>
-        <p className="mt-2 font-mono text-[#3a5a48] leading-relaxed text-[11px]">
+        <p className="mt-2 font-mono text-[#80b898] leading-relaxed text-[11px]">
           Cell color uses marketplace{" "}
-          <strong className="font-medium text-[#5e8a6e]">host reliability %</strong> (historical
+          <strong className="font-medium text-[#8ec4a6]">host reliability %</strong> (historical
           uptime). Higher % = greener cell — opposite of eviction columns.
         </p>
         <ul className="mt-2 space-y-1">
@@ -142,15 +142,15 @@ export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
             Preemptible
           </span>
         </div>
-        <p className="mt-2 font-mono text-[#3a5a48] leading-relaxed text-[11px]">
+        <p className="mt-2 font-mono text-[#80b898] leading-relaxed text-[11px]">
           Prices from the{" "}
-          <strong className="font-medium text-[#5e8a6e]">GCP Cloud Billing Catalog</strong> for
+          <strong className="font-medium text-[#8ec4a6]">GCP Cloud Billing Catalog</strong> for
           preemptible SKUs. No eviction data available — all cells shown in gray.
         </p>
         <ul className="mt-2 space-y-1">
           <LegendRow color="gray" label="All cells" detail="price only, no eviction signal" />
         </ul>
-        <p className="mt-2 font-mono text-[11px] text-[#1e3028]">
+        <p className="mt-2 font-mono text-[11px] text-[#80b898]">
           Prices are per-hour from the billing catalog and update when GCP changes them.
         </p>
       </Panel>

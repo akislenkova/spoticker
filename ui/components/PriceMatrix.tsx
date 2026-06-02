@@ -72,8 +72,8 @@ const DOT_GLOW: Record<CellColor, string> = {
 const PRICE_COLOR: Record<CellColor, string> = {
   green:  "text-[#a0dfc0]",
   yellow: "text-[#d4b060]",
-  red:    "text-[#d07080]",
-  gray:   "text-[#4a6a58]",
+  red:    "text-[#e08898]",
+  gray:   "text-[#8ec4a6]",
 };
 
 function spsColor(score: number): CellColor {
@@ -145,7 +145,7 @@ function SummaryCell({
     return (
       <td className={SUMM_TD}>
         <div className="w-full h-[86px] flex items-center justify-center rounded border border-[rgba(255,255,255,0.05)] bg-transparent">
-          <span className="text-[#1e3028] text-xs font-mono">—</span>
+          <span className="text-[#80b898] text-xs font-mono">—</span>
         </div>
       </td>
     );
@@ -183,17 +183,19 @@ function SummaryCell({
         </div>
         <div className="flex items-center gap-1.5 min-w-0">
           <span className={`inline-block w-1.5 h-1.5 shrink-0 rounded-full ${DOT_COLOR[color]} ${DOT_GLOW[color]}`} />
-          <span className="font-mono text-[10px] text-[#5e8a6e] truncate">
+          <span className="font-mono text-[10px] text-[#8ec4a6] truncate">
             {formatRegion(best.region)}
           </span>
         </div>
         <div className="flex items-center justify-between min-w-0 gap-1">
-          <span className="font-mono text-[9px] text-[#3a5a48] truncate">{metricText}</span>
+          <span className="font-mono text-[9px] text-[#80b898] truncate">{metricText}</span>
           <span
-            className="font-mono text-[11px] text-[#3a5a48] shrink-0 transition-transform duration-150"
-            style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}
+            className={[
+              "font-mono text-[11px] shrink-0 select-none transition-all duration-150",
+              expanded ? "text-[#a0dfc0]" : "text-[#80b898] expand-arrow",
+            ].join(" ")}
           >
-            ›
+            {expanded ? "↙" : "↗"}
           </span>
         </div>
       </button>
@@ -230,18 +232,18 @@ function CloudPanel({
   return (
     <div className="flex-1 min-w-[260px]">
       <div className="mb-2 pb-1.5 border-b border-[rgba(0,255,136,0.1)] flex items-baseline gap-2">
-        <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#5e8a6e]">
+        <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#8ec4a6]">
           {CLOUD_LABEL[cloud] ?? cloud}
         </span>
-        <span className="font-mono text-[9px] text-[#2d4038]">{metricSubtitle}</span>
+        <span className="font-mono text-[9px] text-[#80b898]">{metricSubtitle}</span>
       </div>
       <table className="w-full border-separate border-spacing-y-px">
         <thead>
           <tr>
-            <th className="text-left font-mono text-[9px] text-[#2d4038] uppercase tracking-wide pb-1 pr-4 font-normal">Region</th>
-            <th className="text-right font-mono text-[9px] text-[#2d4038] uppercase tracking-wide pb-1 pr-4 font-normal">$/hr</th>
-            <th className="text-left font-mono text-[9px] text-[#2d4038] uppercase tracking-wide pb-1 pr-4 font-normal">Instance</th>
-            <th className="text-right font-mono text-[9px] text-[#2d4038] uppercase tracking-wide pb-1 font-normal">
+            <th className="text-left font-mono text-[9px] text-[#80b898] uppercase tracking-wide pb-1 pr-4 font-normal">Region</th>
+            <th className="text-right font-mono text-[9px] text-[#80b898] uppercase tracking-wide pb-1 pr-4 font-normal">$/hr</th>
+            <th className="text-left font-mono text-[9px] text-[#80b898] uppercase tracking-wide pb-1 pr-4 font-normal">Instance</th>
+            <th className="text-right font-mono text-[9px] text-[#80b898] uppercase tracking-wide pb-1 font-normal">
               {usesSps ? "SPS" : cloud === "vast" ? "Rel." : cloud === "runpod" ? "Notice" : "Evict"}
             </th>
           </tr>
@@ -264,20 +266,20 @@ function CloudPanel({
                         rel="noopener noreferrer"
                         className="no-underline"
                       >
-                        <span className="font-mono text-[10px] text-[#5e8a6e] group-hover:text-[#7aab8e] transition-colors">
+                        <span className="font-mono text-[10px] text-[#8ec4a6] group-hover:text-[#a0dfc0] transition-colors">
                           {formatRegion(region)}
-                          <span className="ml-0.5 text-[rgba(0,255,136,0.4)]">↗</span>
+                          <span className="ml-0.5 text-[#42c880]">↗</span>
                         </span>
                       </a>
                     ) : (
-                      <span className="font-mono text-[10px] text-[#5e8a6e]">{formatRegion(region)}</span>
+                      <span className="font-mono text-[10px] text-[#8ec4a6]">{formatRegion(region)}</span>
                     )}
                   </span>
                 </td>
                 <td className={`py-0.5 pr-4 text-right font-mono text-[10px] tabular-nums ${PRICE_COLOR[color]}`}>
                   ${cell.price!.toFixed(4)}
                 </td>
-                <td className="py-0.5 pr-4 font-mono text-[9px] text-[#3a5a48] max-w-[130px] truncate" title={cell.instanceLabel}>
+                <td className="py-0.5 pr-4 font-mono text-[9px] text-[#80b898] max-w-[130px] truncate" title={cell.instanceLabel}>
                   {cell.instanceLabel}
                 </td>
                 <td className={`py-0.5 text-right font-mono text-[10px] ${PRICE_COLOR[color]}`}>
@@ -336,7 +338,7 @@ export default function PriceMatrix({
       <table className="text-sm border-separate border-spacing-1 w-max">
         <thead>
           <tr className="bg-[rgba(2,10,7,0.95)]">
-            <th className="px-4 py-3 text-left font-mono text-[10px] tracking-[0.2em] uppercase text-[#3a5a48] w-20">
+            <th className="px-4 py-3 text-left font-mono text-[10px] tracking-[0.2em] uppercase text-[#80b898] w-20">
               Type
             </th>
             {clouds.map(cloud => (
@@ -344,10 +346,10 @@ export default function PriceMatrix({
                 key={cloud}
                 className={`${SUMM_W} px-3 py-3 text-center border-l border-[rgba(0,255,136,0.07)]`}
               >
-                <div className="font-mono text-xs font-semibold tracking-[0.2em] uppercase text-[#5e8a6e]">
+                <div className="font-mono text-xs font-semibold tracking-[0.2em] uppercase text-[#8ec4a6]">
                   {CLOUD_LABEL[cloud]}
                 </div>
-                <div className="mt-0.5 font-mono text-[9px] font-normal normal-case tracking-normal text-[#2d4038]">
+                <div className="mt-0.5 font-mono text-[9px] font-normal normal-case tracking-normal text-[#80b898]">
                   {cloud === "aws"
                     ? AWS_METRIC_SUB[awsUsesSps ? "sps" : "eviction"]
                     : cloud === "gcp"
@@ -376,7 +378,7 @@ export default function PriceMatrix({
               <tr key={`section-${sectionLabel}`} className="bg-[rgba(0,4,3,0.85)]">
                 <td
                   colSpan={numCols}
-                  className="px-4 py-1.5 font-mono text-[9px] uppercase tracking-[0.25em] text-[#3a5a48] border-t border-[rgba(0,255,136,0.08)]"
+                  className="px-4 py-1.5 font-mono text-[9px] uppercase tracking-[0.25em] text-[#80b898] border-t border-[rgba(0,255,136,0.08)]"
                 >
                   {sectionLabel}
                 </td>

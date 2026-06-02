@@ -135,7 +135,7 @@ export default function RecommendationPanel() {
               Agentic
             </span>
           </div>
-          <p className="font-mono text-[11px] text-[#3a5a48] mt-0.5 leading-relaxed">
+          <p className="font-mono text-[11px] text-[#80b898] mt-0.5 leading-relaxed">
             Describe your workload — the agentic layer reads live spot pricing and eviction data to pick the best option for your job.
           </p>
         </div>
@@ -151,10 +151,10 @@ export default function RecommendationPanel() {
       >
         {isEmpty ? (
           <div className="w-full max-w-lg space-y-4 text-center">
-            <p className="font-mono text-[#5e8a6e] text-sm">
+            <p className="font-mono text-[#8ec4a6] text-sm">
               &gt;_ What spot instance fits your workload?
             </p>
-            <p className="font-mono text-[#2d4038] text-[11px] -mt-2">
+            <p className="font-mono text-[#80b898] text-[11px] -mt-2">
               Live pricing and eviction data across AWS, Azure, and GCP — analyzed for your workload.
             </p>
             <div className="flex flex-col gap-2 text-left">
@@ -162,9 +162,10 @@ export default function RecommendationPanel() {
                 <button
                   key={p}
                   onClick={() => send(p)}
-                  className="group relative rounded border border-[rgba(0,255,136,0.08)] bg-[rgba(0,255,136,0.03)] px-4 py-3 text-left font-mono text-[11px] text-[#4a6a58] hover:border-[rgba(0,255,136,0.22)] hover:bg-[rgba(0,255,136,0.06)] hover:text-[#7aab8e] transition-all"
+                  className="group relative rounded border border-[rgba(0,255,136,0.08)] bg-[rgba(0,255,136,0.03)] px-4 py-3 text-left font-mono text-[11px] text-[#8ec4a6] hover:border-[rgba(0,255,136,0.22)] hover:bg-[rgba(0,255,136,0.06)] hover:text-[#a0dfc0] transition-all flex items-center justify-between gap-2"
                 >
-                  <span className="text-[rgba(0,255,136,0.4)] mr-2">&gt;</span>{p}
+                  <span><span className="text-[#42c880] mr-2">&gt;</span>{p}</span>
+                  <span className="expand-arrow text-[#42c880] shrink-0 select-none">↗</span>
                 </button>
               ))}
             </div>
@@ -185,10 +186,10 @@ export default function RecommendationPanel() {
                 <div className={`max-w-[85%] ${msg.role === "user" ? "ml-auto" : ""}`}>
                   {msg.role === "user" ? (
                     <div className="rounded border border-[rgba(0,255,136,0.12)] bg-[rgba(0,255,136,0.05)] px-4 py-2.5 font-mono text-sm text-[#c8f0dc] leading-relaxed">
-                      <span className="text-[rgba(0,255,136,0.5)] mr-2">&gt;</span>{msg.text}
+                      <span className="text-[#42c880] mr-2">&gt;</span>{msg.text}
                     </div>
                   ) : msg.loading ? (
-                    <div className="rounded border border-[rgba(0,255,136,0.1)] bg-[rgba(3,12,9,0.8)] px-4 py-3 font-mono text-sm text-[#3a5a48] flex items-center gap-2">
+                    <div className="rounded border border-[rgba(0,255,136,0.1)] bg-[rgba(3,12,9,0.8)] px-4 py-3 font-mono text-sm text-[#80b898] flex items-center gap-2">
                       <span className="inline-flex gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-bounce [animation-delay:-0.3s]" />
                         <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-bounce [animation-delay:-0.15s]" />
@@ -214,7 +215,7 @@ export default function RecommendationPanel() {
       {/* Input */}
       <div className="px-4 pb-4 pt-2 border-t border-[rgba(0,255,136,0.07)]">
         <div className="flex items-end gap-3 rounded border border-[rgba(0,255,136,0.12)] bg-[rgba(0,4,3,0.7)] px-4 py-3 focus-within:border-[rgba(0,255,136,0.35)] focus-within:shadow-[0_0_16px_rgba(0,255,136,0.08)] transition-all">
-          <span className="font-mono text-sm text-[rgba(0,255,136,0.5)] flex-shrink-0 pb-0.5">&gt;_</span>
+          <span className="font-mono text-sm text-[#42c880] flex-shrink-0 pb-0.5">&gt;_</span>
           <textarea
             ref={textareaRef}
             value={input}
@@ -222,7 +223,7 @@ export default function RecommendationPanel() {
             onKeyDown={handleKey}
             placeholder="Describe your workload…"
             rows={1}
-            className="flex-1 resize-none bg-transparent font-mono text-sm text-[#c8f0dc] placeholder:text-[#2d4038] outline-none max-h-32 leading-relaxed"
+            className="flex-1 resize-none bg-transparent font-mono text-sm text-[#c8f0dc] placeholder:text-[#80b898] outline-none max-h-32 leading-relaxed"
           />
           <button
             onClick={() => send(input)}
@@ -235,7 +236,7 @@ export default function RecommendationPanel() {
             </svg>
           </button>
         </div>
-        <p className="mt-2 text-center font-mono text-[10px] text-[#1e3028] tracking-wider">
+        <p className="mt-2 text-center font-mono text-[10px] text-[#80b898] tracking-wider">
           Enter ↵ to send · Shift+Enter for new line
         </p>
       </div>
@@ -247,14 +248,14 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
   return (
     <div className="space-y-3 rounded border border-[rgba(0,255,136,0.1)] bg-[rgba(3,12,9,0.9)] p-4">
       <div>
-        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[rgba(0,255,136,0.5)] mb-1">
+        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#42c880] mb-1">
           // Recommendation
         </div>
         <div className="font-semibold text-[#c8f0dc] text-sm">{rec.title}</div>
         <p className="mt-1 text-[#7aab8e] text-sm leading-relaxed font-mono">{rec.summary}</p>
       </div>
 
-      <div className="rounded border border-[rgba(0,255,136,0.07)] bg-[rgba(0,4,3,0.8)] px-3 py-2.5 font-mono text-[12px] text-[#4a6a58] leading-relaxed">
+      <div className="rounded border border-[rgba(0,255,136,0.07)] bg-[rgba(0,4,3,0.8)] px-3 py-2.5 font-mono text-[12px] text-[#8ec4a6] leading-relaxed">
         {rec.reasoning}
       </div>
 
@@ -265,14 +266,14 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
               key={`${opt.cloud}-${opt.region}-${opt.gpu}`}
               className="rounded border border-[rgba(0,255,136,0.09)] bg-[rgba(0,4,3,0.7)] p-3"
             >
-              <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#2d4038]">
+              <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#80b898]">
                 {opt.cloud}
               </div>
               <div className="mt-1 font-mono text-sm font-semibold text-[#00ff88]">{opt.gpu}</div>
-              <div className="font-mono text-[11px] text-[#4a6a58]">{opt.region}</div>
+              <div className="font-mono text-[11px] text-[#8ec4a6]">{opt.region}</div>
               <div className="mt-2 font-mono text-sm text-[#a0dfc0]">${opt.price.toFixed(4)}/hr</div>
-              <div className="mt-0.5 font-mono text-[10px] text-[#3a5a48]">Risk: {opt.riskTier}</div>
-              <div className="mt-1.5 font-mono text-[10px] text-[#2d4038]">
+              <div className="mt-0.5 font-mono text-[10px] text-[#80b898]">Risk: {opt.riskTier}</div>
+              <div className="mt-1.5 font-mono text-[10px] text-[#80b898]">
                 {opt.evictionLabel ?? "No eviction data"}
               </div>
             </div>
@@ -281,7 +282,7 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
       )}
 
       {rec.sources.length > 0 && (
-        <div className="font-mono text-[10px] text-[#1e3028]">
+        <div className="font-mono text-[10px] text-[#80b898]">
           Sources: {rec.sources.join(", ")}
         </div>
       )}

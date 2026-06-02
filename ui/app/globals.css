@@ -33,6 +33,11 @@
   50%       { opacity: 0.7; }
 }
 
+@keyframes expandPulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.4); }
+}
+
 /* ── Base ──────────────────────────────────── */
 
 body {
@@ -110,4 +115,10 @@ body > * {
 /* Slide-up entrance */
 .animate-fade-in-up {
   animation: fadeInUp 0.45s ease-out both;
+}
+
+/* Pulsing expand arrow on interactive elements */
+.expand-arrow {
+  display: inline-block;
+  animation: expandPulse 2.4s ease-in-out infinite;
 }
