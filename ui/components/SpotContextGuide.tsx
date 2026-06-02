@@ -4,7 +4,7 @@ export default function SpotContextGuide() {
       {[
         {
           title: "Spot availability matrix",
-          body: "Cheapest spot price per type and region (RunPod: Community vs Secure Cloud tiers). Cell color reflects eviction risk (Azure eviction %, AWS Spot Placement Score when connected, RunPod shows 5s SIGTERM interrupt notice). Green = safer for batch work; red = frequent interruptions.",
+          body: "Cheapest spot price per type and region (RunPod/Vast.ai: Community vs Secure tiers). Cell color reflects eviction risk (Azure eviction %, AWS Spot Placement Score when connected, Vast.ai host reliability %, RunPod shows 5s SIGTERM interrupt notice). Green = safer for batch work; red = frequent interruptions.",
         },
         {
           title: "Context catalog",

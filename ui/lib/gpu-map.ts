@@ -148,6 +148,39 @@ export function runpodGpu(gpuTypeId: string): GpuLabel | null {
 /** RunPod spot pods receive ~5s SIGTERM before termination (vs AWS ~2 min). */
 export const RUNPOD_INTERRUPT_LABEL = "5s SIGTERM";
 
+// Vast.ai gpu_name → hardware type (order: specific before general)
+const VAST_PATTERNS: [RegExp, GpuLabel][] = [
+  [/\bH200\b/i, "H200"],
+  [/\bH100\b/i, "H100"],
+  [/A100.*80\s*GB/i, "A100 80GB"],
+  [/A100.*40\s*GB/i, "A100 40GB"],
+  [/\bA100\b/i, "A100 80GB"],
+  [/\bV100\b/i, "V100"],
+  [/\bL40S\b/i, "L40S"],
+  [/\bL40\b/i, "L40S"],
+  [/\bL4\b/i, "L4"],
+  [/\bA10\b/i, "A10G"],
+  [/\bT4\b/i, "T4"],
+];
+
+export function vastGpu(gpuName: string): GpuLabel | null {
+  for (const [re, gpu] of VAST_PATTERNS) {
+    if (re.test(gpuName)) return gpu;
+  }
+  return null;
+}
+
+/** Vast.ai host reliability (0–1) → display label and traffic-light color. */
+export function vastReliabilityLabel(reliability: number): string {
+  return `${(reliability * 100).toFixed(1)}%`;
+}
+
+export function vastReliabilityColor(reliability: number): CellColor {
+  if (reliability >= 0.99) return "green";
+  if (reliability >= 0.97) return "yellow";
+  return "red";
+}
+
 // Eviction rate string → traffic-light color
 export type CellColor = "green" | "yellow" | "red" | "gray";
 

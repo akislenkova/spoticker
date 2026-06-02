@@ -65,14 +65,14 @@ const AZURE: Record<string, string> = {
   westus3: "west-us-3",
 };
 
-const RUNPOD_TIER: Record<string, string> = {
+const NEOCLOUD_TIER: Record<string, string> = {
   community: "community-cloud",
   secure: "secure-cloud",
 };
 
 /** Returns a dash-separated region label for display. AWS regions already have dashes; Azure ones don't. */
 export function formatRegion(region: string): string {
-  if (region in RUNPOD_TIER) return RUNPOD_TIER[region];
+  if (region in NEOCLOUD_TIER) return NEOCLOUD_TIER[region];
   if (region.includes("-")) return region;
   return AZURE[region] ?? region;
 }

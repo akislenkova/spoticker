@@ -24,3 +24,16 @@ export function runpodSpotDeployUrl(tier: "community" | "secure"): string {
       : "https://www.runpod.io/console/gpu-cloud";
   return `${base}?interruptable=true`;
 }
+
+/** Vast.ai marketplace — search interruptible offers; tier maps to verified vs community hosts. */
+export function vastOfferSearchUrl(
+  gpuName: string,
+  tier: "community" | "secure"
+): string {
+  const params = new URLSearchParams({
+    gpu_name: gpuName.replace(/\s+/g, "_"),
+    type: "bid",
+    verified: tier === "secure" ? "true" : "false",
+  });
+  return `https://cloud.vast.ai/?${params.toString()}`;
+}

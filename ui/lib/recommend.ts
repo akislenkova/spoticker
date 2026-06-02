@@ -5,6 +5,10 @@ import {
   azureGpu,
   gcpGpu,
   runpodGpu,
+  GpuLabel,
+  vastGpu,
+  vastReliabilityLabel,
+  vastReliabilityColor,
   azureEvictionKey,
   awsRangeLabel,
   awsRangeColor,
@@ -141,6 +145,7 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
     azureEvictionsResult,
     gcpPricesResult,
     runpodPricesResult,
+    vastPricesResult,
   ] = await Promise.all([
       supabase.rpc("latest_aws_spot_prices"),
       supabase.from("spot_bid_advisor").select("data").order("fetched_at", { ascending: false }).limit(1),
@@ -190,6 +195,9 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
       supabase
         .from("runpod_spot_prices")
         .select("gpu_type_id, cloud_tier, display_name, spot_price_usd_per_gpu, fetched_at"),
+      supabase
+        .from("vast_spot_prices")
+        .select("gpu_label, gpu_name, cloud_tier, display_name, spot_price_usd_per_gpu, reliability, fetched_at"),
     ]);
 
   const advisorBlob = advisorResult.data?.[0]?.data?.spot_advisor ?? {};
@@ -284,6 +292,30 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
       `Recommended for: ${recFor}\n` +
       `Not recommended for: ${notRecFor}\n` +
       `Updated: ${row.fetched_at ?? now} | Source: Spoticker / RunPod GraphQL`
+    );
+  }
+
+  // Vast.ai pages (community = unverified hosts, secure = verified)
+  for (const row of vastPricesResult.data ?? []) {
+    const gpu: GpuLabel | null =
+      (row.gpu_label as GpuLabel | null) ??
+      vastGpu(row.gpu_name ?? row.display_name ?? "");
+    if (!gpu || row.spot_price_usd_per_gpu == null) continue;
+    const tier = row.cloud_tier === "secure" ? "Secure (verified)" : "Community (unverified)";
+    const reliability = row.reliability != null ? Number(row.reliability) : null;
+    const relLabel = reliability != null ? vastReliabilityLabel(reliability) : "unknown";
+    const color = reliability != null ? vastReliabilityColor(reliability) : "gray";
+    const riskTier = RISK_TIER[color];
+    const [recFor, notRecFor] = WORKLOAD_NOTES[gpu] ?? ["general workloads", "real-time inference"];
+
+    pages.push(
+      `# ${gpu} interruptible ${tier} (Vast.ai ${row.display_name ?? row.gpu_name})\n` +
+      `Cloud: Vast.ai | GPU: ${row.gpu_name ?? gpu} | Tier: ${tier} | Type: ${gpu}\n` +
+      `Interruptible price: $${Number(row.spot_price_usd_per_gpu).toFixed(4)}/GPU-hr\n` +
+      `Host reliability: ${relLabel} | Risk: ${riskTier}\n` +
+      `Recommended for: ${recFor}\n` +
+      `Not recommended for: ${notRecFor}\n` +
+      `Updated: ${row.fetched_at ?? now} | Source: Spoticker / Vast.ai REST API`
     );
   }
 
