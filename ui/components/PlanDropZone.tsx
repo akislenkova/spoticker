@@ -77,7 +77,7 @@ export default function PlanDropZone({ files, onFilesChange }: Props) {
         <input
           type="file"
           multiple
-          accept=".yaml,.yml,.tf,.dockerfile"
+          accept="*"
           className="absolute inset-0 opacity-0 cursor-pointer"
           onChange={handleInput}
         />
