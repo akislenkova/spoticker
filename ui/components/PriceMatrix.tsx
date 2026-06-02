@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { MatrixData, CellData } from "@/lib/matrix";
 import { CellColor, GpuLabel } from "@/lib/gpu-map";
 import { formatRegion } from "@/lib/format-region";
@@ -59,130 +60,197 @@ const PRICE_COLOR: Record<CellColor, string> = {
   gray:   "text-[#4a6a58]",
 };
 
-const COL_W = "w-[116px] min-w-[116px] max-w-[116px]";
-const CELL_TD = `${COL_W} p-1 align-middle`;
-const CELL_BOX =
-  "w-full h-[78px] box-border flex flex-col justify-between gap-0 rounded border px-1.5 py-1 text-center overflow-hidden transition-all duration-150";
-const CELL_BOX_EMPTY =
-  "w-full h-[78px] box-border flex flex-col items-center justify-center rounded border px-1.5 py-1 text-center";
-const COL_TH =
-  `${COL_W} p-1 text-center text-[10px] font-mono font-normal text-[#3a5a48] border-l border-[rgba(0,255,136,0.07)] tracking-wide uppercase leading-snug break-words`;
-
 function spsColor(score: number): CellColor {
   if (score >= 8) return "green";
   if (score >= 5) return "yellow";
   return "red";
 }
 
-function Cell({
-  data,
-  spsScore,
+type RegionEntry = { region: string; cell: CellData; spsScore?: number };
+
+function regionRows(
+  data: MatrixData,
+  gpu: GpuLabel,
+  cloud: string,
+  spsScores: Record<string, number>
+): RegionEntry[] {
+  const row = data.rows.find(r => r.gpu === gpu);
+  if (!row) return [];
+  return data.columns
+    .filter(c => c.cloud === cloud)
+    .map(col => ({
+      region: col.region,
+      cell: row.cells[col.key],
+      spsScore: cloud === "aws" ? spsScoreForCell(spsScores, col.region, gpu) : undefined,
+    }))
+    .filter(e => e.cell.price !== null)
+    .sort((a, b) => (a.cell.price as number) - (b.cell.price as number));
+}
+
+const SUMM_W = "w-[200px] min-w-[200px] max-w-[200px]";
+const SUMM_TD = `${SUMM_W} p-1 align-top`;
+
+function SummaryCell({
   gpu,
   cloud,
-  region,
+  data,
+  spsScores,
+  awsUsesSps,
+  expanded,
+  onToggle,
 }: {
-  data: CellData;
-  spsScore?: number;
   gpu: GpuLabel;
   cloud: string;
-  region: string;
+  data: MatrixData;
+  spsScores: Record<string, number>;
+  awsUsesSps: boolean;
+  expanded: boolean;
+  onToggle: () => void;
 }) {
-  if (data.price === null) {
+  const rows = regionRows(data, gpu, cloud, spsScores);
+
+  if (rows.length === 0) {
     return (
-      <td className={CELL_TD}>
-        <div className={`${CELL_BOX_EMPTY} border-[rgba(255,255,255,0.05)] bg-transparent`}>
-          <span className="text-[#1e3028] text-xs">—</span>
+      <td className={SUMM_TD}>
+        <div className="w-full h-[86px] flex items-center justify-center rounded border border-[rgba(255,255,255,0.05)] bg-transparent">
+          <span className="text-[#1e3028] text-xs font-mono">—</span>
         </div>
       </td>
     );
   }
 
-  const usesSps = cloud === "aws" && spsScore != null;
-  const color = usesSps ? spsColor(spsScore) : data.color;
-  const evictionLabel = data.evictionLabel ?? null;
+  const best = rows[0];
+  const usesSps = cloud === "aws" && awsUsesSps && best.spsScore != null;
+  const color = usesSps ? spsColor(best.spsScore!) : best.cell.color;
 
-  const cloudName = CLOUD_LABEL[cloud] ?? cloud;
-  const ariaLabel = data.instanceLabel
-    ? `Open ${gpu} spot in ${region} (${data.instanceLabel}) in ${cloudName} console`
-    : `Open ${gpu} spot in ${region} in ${cloudName} console`;
-
-  const metricBadge = usesSps
-    ? { label: "SPS", className: "bg-[rgba(0,212,255,0.1)] text-[#00d4ff] border border-[rgba(0,212,255,0.2)]" }
-    : cloud === "azure"
-      ? { label: "EVICT", className: "bg-[rgba(255,149,0,0.1)] text-[#ff9500] border border-[rgba(255,149,0,0.2)]" }
-      : evictionLabel
-        ? { label: "EVICT", className: "bg-[rgba(255,255,255,0.04)] text-[#4a6a58] border border-[rgba(255,255,255,0.08)]" }
-        : null;
-
-  const primaryText = usesSps
-    ? `${spsScore}/10`
-    : evictionLabel
-      ? evictionLabel
-      : "no data";
-  const primaryMuted = !usesSps && evictionLabel == null;
-  const showEvictionSub = usesSps && evictionLabel != null;
-
-  const inner = (
-    <div className={`${CELL_BOX} ${CELL_BG[color]} ${data.href ? CELL_HOVER[color] + " cursor-pointer" : ""}`}>
-      {/* Price */}
-      <div className={`shrink-0 font-mono text-sm font-semibold leading-tight tabular-nums ${PRICE_COLOR[color]}`}>
-        ${data.price.toFixed(4)}
-      </div>
-
-      {/* Metric row */}
-      <div className="shrink-0 flex flex-col items-center justify-center gap-0.5 min-w-0 px-0.5">
-        <div className="flex items-center justify-center gap-1 w-full">
-          <span className={`inline-block w-1.5 h-1.5 shrink-0 rounded-full ${DOT_COLOR[color]} ${DOT_GLOW[color]}`} />
-          {metricBadge ? (
-            <span className={`shrink-0 rounded px-0.5 text-[8px] font-mono font-semibold uppercase tracking-wide ${metricBadge.className}`}>
-              {metricBadge.label}
-            </span>
-          ) : null}
-          <span className={`font-mono text-[10px] leading-tight truncate ${primaryMuted ? "text-[#2d4038]" : "text-[#5e8a6e]"}`}>
-            {primaryText}
-          </span>
-        </div>
-        {showEvictionSub && (
-          <span className="font-mono text-[9px] leading-tight text-[#2d4038] truncate w-full">
-            advisor evict {evictionLabel}
-          </span>
-        )}
-      </div>
-
-      {/* Instance label */}
-      <div
-        className="shrink-0 min-h-[12px] w-full min-w-0 font-mono text-[#2d4038] text-[9px] leading-tight truncate"
-        title={data.instanceLabel}
-      >
-        {data.instanceLabel ? (
-          <>
-            {data.instanceLabel}
-            {data.href ? <span className="ml-0.5 text-[rgba(0,255,136,0.4)]">↗</span> : null}
-          </>
-        ) : (
-          <span className="invisible" aria-hidden>—</span>
-        )}
-      </div>
-    </div>
-  );
+  const metricText = usesSps
+    ? `SPS ${best.spsScore}/10`
+    : best.cell.evictionLabel
+      ? `evict ${best.cell.evictionLabel}`
+      : `${rows.length} region${rows.length !== 1 ? "s" : ""}`;
 
   return (
-    <td className={CELL_TD}>
-      {data.href ? (
-        <a
-          href={data.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={data.instanceLabel}
-          aria-label={ariaLabel}
-          className="block w-full no-underline text-inherit focus:outline-none focus-visible:ring-1 focus-visible:ring-[rgba(0,255,136,0.5)] rounded"
-        >
-          {inner}
-        </a>
-      ) : (
-        inner
-      )}
+    <td className={SUMM_TD}>
+      <button
+        onClick={onToggle}
+        aria-expanded={expanded}
+        className={[
+          "w-full h-[86px] box-border flex flex-col justify-between",
+          "rounded border px-2 py-1.5 text-left cursor-pointer",
+          "transition-all duration-150 focus:outline-none",
+          "focus-visible:ring-1 focus-visible:ring-[rgba(0,255,136,0.5)]",
+          CELL_BG[color],
+          CELL_HOVER[color],
+          expanded ? "ring-1 ring-inset ring-[rgba(0,255,136,0.25)]" : "",
+        ].join(" ")}
+      >
+        <div className={`font-mono text-sm font-semibold tabular-nums leading-tight ${PRICE_COLOR[color]}`}>
+          ${best.cell.price!.toFixed(4)}
+        </div>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className={`inline-block w-1.5 h-1.5 shrink-0 rounded-full ${DOT_COLOR[color]} ${DOT_GLOW[color]}`} />
+          <span className="font-mono text-[10px] text-[#5e8a6e] truncate">
+            {formatRegion(best.region)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between min-w-0 gap-1">
+          <span className="font-mono text-[9px] text-[#3a5a48] truncate">{metricText}</span>
+          <span
+            className="font-mono text-[11px] text-[#3a5a48] shrink-0 transition-transform duration-150"
+            style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}
+          >
+            ›
+          </span>
+        </div>
+      </button>
     </td>
+  );
+}
+
+function CloudPanel({
+  gpu,
+  cloud,
+  data,
+  spsScores,
+  awsUsesSps,
+}: {
+  gpu: GpuLabel;
+  cloud: string;
+  data: MatrixData;
+  spsScores: Record<string, number>;
+  awsUsesSps: boolean;
+}) {
+  const rows = regionRows(data, gpu, cloud, spsScores);
+  const usesSps = cloud === "aws" && awsUsesSps;
+
+  const metricSubtitle =
+    usesSps ? "Placement score (SPS)"
+    : cloud === "azure" ? "Eviction rate"
+    : cloud === "gcp" ? "Preemptible price"
+    : "Eviction rate (advisor)";
+
+  return (
+    <div className="flex-1 min-w-[260px]">
+      <div className="mb-2 pb-1.5 border-b border-[rgba(0,255,136,0.1)] flex items-baseline gap-2">
+        <span className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#5e8a6e]">
+          {CLOUD_LABEL[cloud] ?? cloud}
+        </span>
+        <span className="font-mono text-[9px] text-[#2d4038]">{metricSubtitle}</span>
+      </div>
+      <table className="w-full border-separate border-spacing-y-px">
+        <thead>
+          <tr>
+            <th className="text-left font-mono text-[9px] text-[#2d4038] uppercase tracking-wide pb-1 pr-4 font-normal">Region</th>
+            <th className="text-right font-mono text-[9px] text-[#2d4038] uppercase tracking-wide pb-1 pr-4 font-normal">$/hr</th>
+            <th className="text-left font-mono text-[9px] text-[#2d4038] uppercase tracking-wide pb-1 pr-4 font-normal">Instance</th>
+            <th className="text-right font-mono text-[9px] text-[#2d4038] uppercase tracking-wide pb-1 font-normal">
+              {usesSps ? "SPS" : "Evict"}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ region, cell, spsScore }) => {
+            const eff = cloud === "aws" && awsUsesSps && spsScore != null;
+            const color = eff ? spsColor(spsScore!) : cell.color;
+            const metricText = eff ? `${spsScore}/10` : cell.evictionLabel ?? "—";
+
+            return (
+              <tr key={region} className={cell.href ? "group" : ""}>
+                <td className="py-0.5 pr-4 whitespace-nowrap">
+                  <span className="flex items-center gap-1.5">
+                    <span className={`inline-block w-1 h-1 shrink-0 rounded-full ${DOT_COLOR[color]}`} />
+                    {cell.href ? (
+                      <a
+                        href={cell.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="no-underline"
+                      >
+                        <span className="font-mono text-[10px] text-[#5e8a6e] group-hover:text-[#7aab8e] transition-colors">
+                          {formatRegion(region)}
+                          <span className="ml-0.5 text-[rgba(0,255,136,0.4)]">↗</span>
+                        </span>
+                      </a>
+                    ) : (
+                      <span className="font-mono text-[10px] text-[#5e8a6e]">{formatRegion(region)}</span>
+                    )}
+                  </span>
+                </td>
+                <td className={`py-0.5 pr-4 text-right font-mono text-[10px] tabular-nums ${PRICE_COLOR[color]}`}>
+                  ${cell.price!.toFixed(4)}
+                </td>
+                <td className="py-0.5 pr-4 font-mono text-[9px] text-[#3a5a48] max-w-[130px] truncate" title={cell.instanceLabel}>
+                  {cell.instanceLabel}
+                </td>
+                <td className={`py-0.5 text-right font-mono text-[10px] ${PRICE_COLOR[color]}`}>
+                  {metricText}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -190,6 +258,8 @@ const AWS_METRIC_SUB: Record<"sps" | "eviction", string> = {
   sps: "Placement score (SPS)",
   eviction: "Eviction rate (advisor)",
 };
+
+const CLOUDS: Array<"aws" | "azure" | "gcp"> = ["aws", "azure", "gcp"];
 
 export default function PriceMatrix({
   data,
@@ -200,77 +270,102 @@ export default function PriceMatrix({
   spsScores?: Record<string, number>;
   awsUsesSps?: boolean;
 }) {
-  type Group = { cloud: string; count: number };
-  const groups: Group[] = [];
-  for (const col of data.columns) {
-    const last = groups[groups.length - 1];
-    if (last?.cloud === col.cloud) last.count++;
-    else groups.push({ cloud: col.cloud, count: 1 });
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggle(gpu: GpuLabel, cloud: string) {
+    const key = `${gpu}::${cloud}`;
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   }
+
+  const clouds = CLOUDS.filter(cloud => data.columns.some(c => c.cloud === cloud));
+  const numCols = clouds.length + 1;
 
   return (
     <div className="overflow-x-auto rounded-lg border border-[rgba(0,255,136,0.1)] shadow-[0_0_40px_rgba(0,255,136,0.04)] backdrop-blur-sm">
       <table className="text-sm border-separate border-spacing-1 w-max">
         <thead>
           <tr className="bg-[rgba(2,10,7,0.95)]">
-            <th
-              className="px-4 py-2 text-left font-mono text-[10px] tracking-[0.2em] uppercase text-[#3a5a48] w-20"
-              rowSpan={2}
-            >
+            <th className="px-4 py-3 text-left font-mono text-[10px] tracking-[0.2em] uppercase text-[#3a5a48] w-20">
               GPU
             </th>
-            {groups.map((g) => (
+            {clouds.map(cloud => (
               <th
-                key={g.cloud}
-                colSpan={g.count}
-                className="px-3 py-2 text-center border-l border-[rgba(0,255,136,0.07)]"
+                key={cloud}
+                className={`${SUMM_W} px-3 py-3 text-center border-l border-[rgba(0,255,136,0.07)]`}
               >
                 <div className="font-mono text-xs font-semibold tracking-[0.2em] uppercase text-[#5e8a6e]">
-                  {CLOUD_LABEL[g.cloud] ?? g.cloud}
+                  {CLOUD_LABEL[cloud]}
                 </div>
                 <div className="mt-0.5 font-mono text-[9px] font-normal normal-case tracking-normal text-[#2d4038]">
-                  {g.cloud === "aws"
+                  {cloud === "aws"
                     ? AWS_METRIC_SUB[awsUsesSps ? "sps" : "eviction"]
-                    : g.cloud === "gcp"
+                    : cloud === "gcp"
                       ? "Preemptible price"
                       : "Eviction rate"}
                 </div>
               </th>
             ))}
           </tr>
-          <tr className="bg-[rgba(2,10,7,0.95)]">
-            {data.columns.map((col) => (
-              <th key={col.key} className={COL_TH}>
-                {formatRegion(col.region)}
-              </th>
-            ))}
-          </tr>
         </thead>
         <tbody>
-          {data.rows.map((row, i) => (
-            <tr
-              key={row.gpu}
-              className={i % 2 === 0 ? "bg-[rgba(0,4,3,0.6)]" : "bg-[rgba(0,8,6,0.3)]"}
-            >
-              <td className="px-4 py-2 font-mono font-semibold text-[#7aab8e] whitespace-nowrap tracking-wide text-sm">
-                {row.gpu}
-              </td>
-              {data.columns.map((col) => (
-                <Cell
-                  key={col.key}
-                  data={row.cells[col.key]}
-                  spsScore={
-                    col.cloud === "aws"
-                      ? spsScoreForCell(spsScores, col.region, row.gpu)
-                      : undefined
-                  }
-                  gpu={row.gpu}
-                  cloud={col.cloud}
-                  region={col.region}
-                />
-              ))}
-            </tr>
-          ))}
+          {data.rows.flatMap((row, i) => {
+            const expandedClouds = clouds.filter(cloud =>
+              expanded.has(`${row.gpu}::${cloud}`)
+            );
+            const gpuRow = (
+              <tr
+                key={row.gpu}
+                className={i % 2 === 0 ? "bg-[rgba(0,4,3,0.6)]" : "bg-[rgba(0,8,6,0.3)]"}
+              >
+                <td className="px-4 py-2 font-mono font-semibold text-[#7aab8e] whitespace-nowrap tracking-wide text-sm align-middle">
+                  {row.gpu}
+                </td>
+                {clouds.map(cloud => (
+                  <SummaryCell
+                    key={cloud}
+                    gpu={row.gpu}
+                    cloud={cloud}
+                    data={data}
+                    spsScores={spsScores}
+                    awsUsesSps={awsUsesSps}
+                    expanded={expanded.has(`${row.gpu}::${cloud}`)}
+                    onToggle={() => toggle(row.gpu, cloud)}
+                  />
+                ))}
+              </tr>
+            );
+
+            if (expandedClouds.length === 0) return [gpuRow];
+
+            const expansionRow = (
+              <tr key={`${row.gpu}::expansion`}>
+                <td
+                  colSpan={numCols}
+                  className="px-4 py-4 bg-[rgba(0,255,136,0.018)] border-t border-b border-[rgba(0,255,136,0.07)]"
+                >
+                  <div className="flex gap-10 flex-wrap">
+                    {expandedClouds.map(cloud => (
+                      <CloudPanel
+                        key={cloud}
+                        gpu={row.gpu}
+                        cloud={cloud}
+                        data={data}
+                        spsScores={spsScores}
+                        awsUsesSps={awsUsesSps}
+                      />
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            );
+
+            return [gpuRow, expansionRow];
+          })}
         </tbody>
       </table>
     </div>
