@@ -31,7 +31,12 @@ function spsScoreForCell(
   return spsScores[`${region}::${instance}`];
 }
 
-const CLOUD_LABEL: Record<string, string> = { aws: "AWS", azure: "Azure", gcp: "GCP" };
+const CLOUD_LABEL: Record<string, string> = {
+  aws: "AWS",
+  azure: "Azure",
+  gcp: "GCP",
+  runpod: "RunPod",
+};
 
 const CELL_BG: Record<CellColor, string> = {
   green:  "bg-[rgba(0,255,136,0.05)] border-[rgba(0,255,136,0.22)]",
@@ -195,6 +200,7 @@ function CloudPanel({
     usesSps ? "Placement score (SPS)"
     : cloud === "azure" ? "Eviction rate"
     : cloud === "gcp" ? "Preemptible price"
+    : cloud === "runpod" ? "Interrupt notice"
     : "Eviction rate (advisor)";
 
   return (
@@ -267,7 +273,12 @@ const AWS_METRIC_SUB: Record<"sps" | "eviction", string> = {
   eviction: "Eviction rate (advisor)",
 };
 
-const CLOUDS: Array<"aws" | "azure" | "gcp"> = ["aws", "azure", "gcp"];
+const CLOUDS: Array<"aws" | "azure" | "gcp" | "runpod"> = [
+  "aws",
+  "azure",
+  "gcp",
+  "runpod",
+];
 
 export default function PriceMatrix({
   data,
@@ -314,7 +325,9 @@ export default function PriceMatrix({
                     ? AWS_METRIC_SUB[awsUsesSps ? "sps" : "eviction"]
                     : cloud === "gcp"
                       ? "Preemptible price"
-                      : "Eviction rate"}
+                      : cloud === "runpod"
+                        ? "Interrupt notice"
+                        : "Eviction rate"}
                 </div>
               </th>
             ))}

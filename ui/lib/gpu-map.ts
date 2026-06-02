@@ -123,6 +123,31 @@ export function gcpGpu(description: string): GpuLabel | null {
   return null;
 }
 
+// RunPod gpuTypes.id → hardware type (order: specific before general)
+const RUNPOD_PATTERNS: [RegExp, GpuLabel][] = [
+  [/\bH200\b/i, "H200"],
+  [/\bH100\b/i, "H100"],
+  [/A100.*80\s*GB/i, "A100 80GB"],
+  [/A100.*40\s*GB/i, "A100 40GB"],
+  [/\bA100\b/i, "A100 80GB"],
+  [/\bV100\b/i, "V100"],
+  [/\bL40S\b/i, "L40S"],
+  [/\bL40\b/i, "L40S"],
+  [/\bL4\b/i, "L4"],
+  [/\bA10\b/i, "A10G"],
+  [/\bT4\b/i, "T4"],
+];
+
+export function runpodGpu(gpuTypeId: string): GpuLabel | null {
+  for (const [re, gpu] of RUNPOD_PATTERNS) {
+    if (re.test(gpuTypeId)) return gpu;
+  }
+  return null;
+}
+
+/** RunPod spot pods receive ~5s SIGTERM before termination (vs AWS ~2 min). */
+export const RUNPOD_INTERRUPT_LABEL = "5s SIGTERM";
+
 // Eviction rate string → traffic-light color
 export type CellColor = "green" | "yellow" | "red" | "gray";
 

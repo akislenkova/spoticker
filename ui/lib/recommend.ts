@@ -4,10 +4,12 @@ import {
   awsGpu,
   azureGpu,
   gcpGpu,
+  runpodGpu,
   azureEvictionKey,
   awsRangeLabel,
   awsRangeColor,
   evictionColor,
+  RUNPOD_INTERRUPT_LABEL,
 } from "./gpu-map";
 
 export type RecommendationOption = {
@@ -132,8 +134,14 @@ options should be ranked best-first. Include 1–3 options. options may be empty
 async function buildPricingContext(): Promise<{ context: string; timestamp: string }> {
   const now = new Date().toISOString();
 
-  const [awsPricesResult, advisorResult, azurePricesResult, azureEvictionsResult, gcpPricesResult] =
-    await Promise.all([
+  const [
+    awsPricesResult,
+    advisorResult,
+    azurePricesResult,
+    azureEvictionsResult,
+    gcpPricesResult,
+    runpodPricesResult,
+  ] = await Promise.all([
       supabase.rpc("latest_aws_spot_prices"),
       supabase.from("spot_bid_advisor").select("data").order("fetched_at", { ascending: false }).limit(1),
       supabase.rpc("latest_azure_spot_prices"),
@@ -179,6 +187,9 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
             "description.ilike.%C3 %",
           ].join(",")
         ),
+      supabase
+        .from("runpod_spot_prices")
+        .select("gpu_type_id, cloud_tier, display_name, spot_price_usd_per_gpu, fetched_at"),
     ]);
 
   const advisorBlob = advisorResult.data?.[0]?.data?.spot_advisor ?? {};
@@ -255,6 +266,25 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
         `Updated: ${now} | Source: Spoticker / GCP Cloud Billing Catalog`
       );
     }
+  }
+
+  // RunPod pages (Community vs Secure Cloud as separate tiers)
+  for (const row of runpodPricesResult.data ?? []) {
+    const gpu = runpodGpu(row.gpu_type_id ?? "");
+    if (!gpu || row.spot_price_usd_per_gpu == null) continue;
+    const tier = row.cloud_tier === "secure" ? "Secure Cloud" : "Community Cloud";
+    const [recFor, notRecFor] = WORKLOAD_NOTES[gpu] ?? ["general workloads", "real-time inference"];
+
+    pages.push(
+      `# ${gpu} spot ${tier} (RunPod ${row.display_name ?? row.gpu_type_id})\n` +
+      `Cloud: RunPod | GPU: ${row.gpu_type_id} | Tier: ${tier} | Type: ${gpu}\n` +
+      `Spot price: $${Number(row.spot_price_usd_per_gpu).toFixed(4)}/GPU-hr\n` +
+      `Interrupt notice: ${RUNPOD_INTERRUPT_LABEL} before termination\n` +
+      `Eviction rate: N/A (marketplace spot; no historical eviction telemetry) | Risk: UNKNOWN\n` +
+      `Recommended for: ${recFor}\n` +
+      `Not recommended for: ${notRecFor}\n` +
+      `Updated: ${row.fetched_at ?? now} | Source: Spoticker / RunPod GraphQL`
+    );
   }
 
   return { context: pages.join("\n\n---\n\n"), timestamp: now };

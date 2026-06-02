@@ -15,3 +15,12 @@ export function azureVmCreateUrl(region: string): string {
 export function gcpVmCreateUrl(region: string): string {
   return `https://console.cloud.google.com/compute/instancesAdd?region=${encodeURIComponent(region)}`;
 }
+
+/** RunPod console — deploy a spot (interruptible) pod; tier selects Community vs Secure Cloud. */
+export function runpodSpotDeployUrl(tier: "community" | "secure"): string {
+  const base =
+    tier === "secure"
+      ? "https://www.runpod.io/console/gpu-secure-cloud"
+      : "https://www.runpod.io/console/gpu-cloud";
+  return `${base}?interruptable=true`;
+}
