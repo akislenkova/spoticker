@@ -43,7 +43,7 @@ function Panel({ children }: { children: React.ReactNode }) {
 
 export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
   return (
-    <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4 text-xs">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 text-xs">
       <Panel>
         <div className="flex items-center gap-2">
           <span className="font-mono font-semibold text-[#7aab8e] tracking-wider">AWS</span>
@@ -152,6 +152,69 @@ export default function MatrixLegend({ awsMetric }: { awsMetric: AwsMetric }) {
         </ul>
         <p className="mt-2 font-mono text-[11px] text-[#80b898]">
           Prices are per-hour from the billing catalog and update when GCP changes them.
+        </p>
+      </Panel>
+
+      <Panel>
+        <div className="flex items-center gap-2">
+          <span className="font-mono font-semibold text-[#7aab8e] tracking-wider">RunPod</span>
+          <span className="rounded border border-[rgba(255,140,78,0.25)] bg-[rgba(255,140,78,0.08)] px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase tracking-widest text-[#ff8c4e]">
+            Interruptible
+          </span>
+        </div>
+        <p className="mt-2 font-mono text-[#80b898] leading-relaxed text-[11px]">
+          Prices from RunPod&apos;s public GraphQL API — no key required. Two tiers:{" "}
+          <strong className="font-medium text-[#8ec4a6]">Community Cloud</strong> (consumer
+          hardware, lower cost) and{" "}
+          <strong className="font-medium text-[#8ec4a6]">Secure Cloud</strong> (enterprise-grade,
+          higher SLA).
+        </p>
+        <ul className="mt-2 space-y-1">
+          <LegendRow color="gray" label="All cells" detail="price only · 5s SIGTERM on interrupt" />
+        </ul>
+        <p className="mt-2 font-mono text-[11px] text-[#80b898]">
+          No eviction rate data — interruption risk depends on live spot capacity.
+        </p>
+      </Panel>
+
+      <Panel>
+        <div className="flex items-center gap-2">
+          <span className="font-mono font-semibold text-[#7aab8e] tracking-wider">CoreWeave</span>
+          <span className="rounded border border-[rgba(78,232,212,0.2)] bg-[rgba(78,232,212,0.07)] px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase tracking-widest text-[#4ee8d4]">
+            Preemptible
+          </span>
+        </div>
+        <p className="mt-2 font-mono text-[#80b898] leading-relaxed text-[11px]">
+          Prices scraped from CoreWeave&apos;s public pricing page. Two regions:{" "}
+          <strong className="font-medium text-[#8ec4a6]">North America</strong> and{" "}
+          <strong className="font-medium text-[#8ec4a6]">Europe</strong>. The metric shows
+          estimated savings vs on-demand where available.
+        </p>
+        <ul className="mt-2 space-y-1">
+          <LegendRow color="gray" label="All cells" detail="price only · no eviction signal" />
+        </ul>
+        <p className="mt-2 font-mono text-[11px] text-[#80b898]">
+          Prices are per GPU/hr, normalized from per-instance rates using published GPU counts.
+        </p>
+      </Panel>
+
+      <Panel>
+        <div className="flex items-center gap-2">
+          <span className="font-mono font-semibold text-[#7aab8e] tracking-wider">Nebius</span>
+          <span className="rounded border border-[rgba(192,144,255,0.2)] bg-[rgba(192,144,255,0.07)] px-1.5 py-0.5 font-mono text-[9px] font-medium uppercase tracking-widest text-[#c090ff]">
+            Preemptible
+          </span>
+        </div>
+        <p className="mt-2 font-mono text-[#80b898] leading-relaxed text-[11px]">
+          Prices scraped from Nebius docs — no credentials required. GPU inventory focuses on{" "}
+          <strong className="font-medium text-[#8ec4a6]">EU regions</strong>. The metric shows
+          estimated savings vs on-demand where available.
+        </p>
+        <ul className="mt-2 space-y-1">
+          <LegendRow color="gray" label="All cells" detail="price only · no eviction signal" />
+        </ul>
+        <p className="mt-2 font-mono text-[11px] text-[#80b898]">
+          Prices update when Nebius publishes new rates to their public docs.
         </p>
       </Panel>
     </div>
