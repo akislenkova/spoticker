@@ -4,7 +4,6 @@ import {
   GpuLabel,
   CellColor,
   awsGpu,
-  azureGpu,
   gcpGpu,
   azureEvictionKey,
   awsRangeLabel,
@@ -110,69 +109,12 @@ function telemetryLabel(evictionsPerHour: number): string {
   return `~${daily.toFixed(1)}%/day`;
 }
 
-const AZURE_GPU_PRICE_FILTER = [
-  "arm_sku_name.ilike.%T4%",
-  "arm_sku_name.ilike.%A10%",
-  "arm_sku_name.ilike.%L4%",
-  "arm_sku_name.ilike.%L40S%",
-  "arm_sku_name.ilike.%V100%",
-  "arm_sku_name.ilike.%A100%",
-  "arm_sku_name.ilike.%H100%",
-  "arm_sku_name.ilike.%H200%",
-  // AMD EPYC D/E-series v4/v5 (e.g. Standard_D4as_v5)
-  "arm_sku_name.ilike.%as_v4%",
-  "arm_sku_name.ilike.%as_v5%",
-  "arm_sku_name.ilike.%ads_v4%",
-  "arm_sku_name.ilike.%ads_v5%",
-  // ARM Ampere D/E-series v4/v5 (e.g. Standard_D4ps_v5)
-  "arm_sku_name.ilike.%ps_v4%",
-  "arm_sku_name.ilike.%ps_v5%",
-  "arm_sku_name.ilike.%pls_v5%",
-  // Intel D/E-series v5 (e.g. Standard_D4s_v5, Standard_D4ds_v5)
-  "arm_sku_name.ilike.%ds_v5%",
-  "arm_sku_name.ilike.%_s_v5%",
-].join(",");
-
-type AzurePriceRow = {
-  arm_sku_name: string | null;
-  sku_name: string | null;
+type AzureAggRow = {
+  gpu_label: GpuLabel;
   region: string;
+  arm_sku_name: string;
   retail_price: number;
 };
-
-/** Fallback when latest_azure_spot_prices() RPC times out on large history tables. */
-async function fetchAzurePricesLatestBatch(): Promise<AzurePriceRow[]> {
-  const { data: head } = await supabase
-    .from("azure_spot_prices")
-    .select("fetched_at")
-    .order("fetched_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!head?.fetched_at) return [];
-
-  const { data, error } = await supabase
-    .from("azure_spot_prices")
-    .select("arm_sku_name, sku_name, region, retail_price")
-    .eq("fetched_at", head.fetched_at)
-    .or(AZURE_GPU_PRICE_FILTER);
-
-  if (error) {
-    console.error("[azure] latest batch prices:", error.message);
-    return [];
-  }
-
-  const byKey = new Map<string, AzurePriceRow>();
-  for (const row of data ?? []) {
-    if (!row.arm_sku_name || !row.region) continue;
-    const key = `${row.arm_sku_name}::${row.region}`;
-    const existing = byKey.get(key);
-    if (!existing || row.retail_price < existing.retail_price) {
-      byKey.set(key, row as AzurePriceRow);
-    }
-  }
-  return [...byKey.values()];
-}
 
 /** Fetch only the latest-batch eviction rows (avoids the PostgREST 1000-row hard cap). */
 async function fetchAzureEvictionLatestBatch(): Promise<
@@ -214,20 +156,21 @@ async function fetchAzureEvictionLatestBatch(): Promise<
 }
 
 async function fetchAzure(): Promise<Map<string, CellEntry>> {
-  const [prices, evictionRows, { data: telemetry, error: telErr }] =
+  const [{ data: priceRows, error: priceErr }, evictionRows, { data: telemetry, error: telErr }] =
     await Promise.all([
-      fetchAzurePricesLatestBatch(),
+      supabase.rpc("latest_azure_spot_prices_agg"),
       fetchAzureEvictionLatestBatch(),
       supabase.from("eviction_rates_30d").select("region, evictions_per_hour"),
     ]);
 
+  if (priceErr) console.error("[azure] latest_azure_spot_prices_agg:", priceErr.message);
   if (telErr) console.error("[azure] eviction_rates_30d:", telErr.message);
 
   const rgMap = new Map<string, { label: string; color: CellColor }>();
   for (const e of evictionRows) {
     if (!e.skuName || !e.location) continue;
     const key = azureEvictionKey(e.skuName, e.location);
-    if (rgMap.has(key)) continue; // keep newest (rows sorted by fetched_at desc)
+    if (rgMap.has(key)) continue;
     rgMap.set(key, {
       label: e.evictionRate,
       color: evictionColor(e.evictionRate),
@@ -246,24 +189,20 @@ async function fetchAzure(): Promise<Map<string, CellEntry>> {
 
   const map = new Map<string, CellEntry>();
 
-  for (const row of prices ?? []) {
-    const sku = row.arm_sku_name ?? row.sku_name ?? "";
-    const gpu = azureGpu(sku);
-    if (!gpu) continue;
-
+  for (const row of (priceRows ?? []) as AzureAggRow[]) {
     const ev =
-      rgMap.get(azureEvictionKey(sku, row.region)) ??
+      rgMap.get(azureEvictionKey(row.arm_sku_name, row.region)) ??
       telMap.get(row.region.toLowerCase()) ??
       null;
 
-    const key = `${gpu}::azure:${row.region}`;
+    const key = `${row.gpu_label}::azure:${row.region}`;
     const existing = map.get(key);
     if (!existing || row.retail_price < existing.price) {
       map.set(key, {
         price: row.retail_price,
         evictionLabel: ev?.label ?? null,
         color: ev?.color ?? "gray",
-        instanceLabel: sku,
+        instanceLabel: row.arm_sku_name,
         href: azureVmCreateUrl(row.region),
       });
     }
