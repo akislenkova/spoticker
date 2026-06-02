@@ -3,6 +3,7 @@ export type GpuLabel =
   | "H100"
   | "A100 80GB"
   | "A100 40GB"
+  | "V100"
   | "L40S"
   | "L4"
   | "A10G"
@@ -16,6 +17,7 @@ export const GPU_ORDER: GpuLabel[] = [
   "H100",
   "A100 80GB",
   "A100 40GB",
+  "V100",
   "L40S",
   "L4",
   "A10G",
@@ -32,6 +34,7 @@ const AWS_FAMILY: Record<string, GpuLabel> = {
   p5: "H100",
   p4de: "A100 80GB",
   p4d: "A100 40GB",
+  p3: "V100",
   g6e: "L40S",
   g6: "L4",
   g5: "A10G",
@@ -65,6 +68,7 @@ const AZURE_PATTERNS: [RegExp, GpuLabel][] = [
   [/A100.*80/i, "A100 80GB"],
   [/nd.*A100/i, "A100 80GB"],
   [/A100/i, "A100 40GB"],
+  [/V100/i, "V100"],
   [/L40S/i, "L40S"],
   [/L4/i, "L4"],
   [/A10/i, "A10G"],
@@ -84,6 +88,7 @@ const GCP_PATTERNS: [RegExp, GpuLabel][] = [
   [/\bH100\b/i, "H100"],
   [/A100.*80GB/i, "A100 80GB"],
   [/\bA100\b/i, "A100 40GB"],
+  [/\bV100\b/i, "V100"],
   [/\bL40S\b/i, "L40S"],
   [/\bL4\b/i, "L4"],
   [/\bA10\b/i, "A10G"],

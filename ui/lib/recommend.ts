@@ -39,6 +39,8 @@ const WORKLOAD_NOTES: Record<string, [string, string]> = {
                      "real-time latency-sensitive serving"],
   L40S:             ["mid-size training, graphics/rendering workloads, FP8 inference",
                      "stateful training without checkpointing"],
+  V100:             ["batch training, legacy model fine-tuning",
+                     "new workloads (A100 is cheaper and faster), real-time inference"],
   "A100 40GB":      ["large model training, fine-tuning, high-throughput batch inference",
                      "real-time inference, stateful training without checkpointing"],
   "A100 80GB":      ["very large model training requiring >40 GB VRAM, MoE fine-tuning",
@@ -68,6 +70,8 @@ const GPU_COUNTS: Record<string, number> = {
   // L40S (g6e)
   "g6e.xlarge": 1, "g6e.2xlarge": 1, "g6e.4xlarge": 1, "g6e.8xlarge": 1,
   "g6e.12xlarge": 4, "g6e.48xlarge": 8,
+  // V100 (p3)
+  "p3.2xlarge": 1, "p3.8xlarge": 4, "p3.16xlarge": 8, "p3dn.24xlarge": 8,
   // A100 40GB (p4d)
   "p4d.24xlarge": 8,
   // A100 80GB (p4de)
@@ -142,6 +146,7 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
             "skuName.ilike.%a10%",
             "skuName.ilike.%l4%",
             "skuName.ilike.%l40s%",
+            "skuName.ilike.%v100%",
             "skuName.ilike.%a100%",
             "skuName.ilike.%h100%",
             "skuName.ilike.%h200%",
@@ -163,6 +168,7 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
             "description.ilike.%A10%",
             "description.ilike.%L4%",
             "description.ilike.%L40S%",
+            "description.ilike.%V100%",
             "description.ilike.%A100%",
             "description.ilike.%H100%",
             "description.ilike.%H200%",

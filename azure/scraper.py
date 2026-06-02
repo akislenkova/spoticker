@@ -38,7 +38,7 @@ HEADERS = {
 BATCH = 500
 
 # GPU keyword markers — match ui/lib/gpu-map.ts Azure patterns
-_GPU_ARM_MARKERS = ("T4", "A10", "L4", "L40S", "A100", "H100", "H200")
+_GPU_ARM_MARKERS = ("T4", "A10", "L4", "L40S", "V100", "A100", "H100", "H200")
 
 # CPU SKU patterns — D/E-series AMD, Intel, and ARM (Ampere Altra)
 # Matches Standard_D4as_v5 (AMD), Standard_D4ps_v5 (ARM), Standard_D4s_v5 (Intel)

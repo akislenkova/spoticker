@@ -36,6 +36,8 @@ SPOT_INSTANCE_TYPES = [
     "g5.xlarge", "g5.2xlarge", "g5.12xlarge", "g5.48xlarge",
     # ── GPU: T4 ───────────────────────────────────────────────────────────────
     "g4dn.xlarge", "g4dn.2xlarge", "g4dn.12xlarge",
+    # ── GPU: V100 (p3) ────────────────────────────────────────────────────────
+    "p3.2xlarge", "p3.8xlarge", "p3.16xlarge",
     # ── CPU: AMD EPYC (m7a / c7a) ─────────────────────────────────────────────
     "m7a.xlarge", "m7a.2xlarge", "m7a.4xlarge",
     "c7a.xlarge", "c7a.2xlarge", "c7a.4xlarge",

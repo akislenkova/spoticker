@@ -10,7 +10,7 @@ language sql stable as $$
     instance_type, region, price_usd
   from spot_price_history
   where instance_type similar to
-    '(p5e|p5|p4de|p4d|g6e|g6|g5|g4dn|m7a|m6a|c7a|c6a|r7a|m7i|m6i|c7i|c6i|r7i|m7g|m6g|c7g|c6g|r7g)\.%'
+    '(p5e|p5|p4de|p4d|p3|g6e|g6|g5|g4dn|m7a|m6a|c7a|c6a|r7a|m7i|m6i|c7i|c6i|r7i|m7g|m6g|c7g|c6g|r7g)\.%'
   order by instance_type, region, timestamp desc;
 $$;
 
@@ -26,6 +26,7 @@ language sql stable as $$
     arm_sku_name ilike '%A10%'    or
     arm_sku_name ilike '%L4%'     or
     arm_sku_name ilike '%L40S%'   or
+    arm_sku_name ilike '%V100%'   or
     arm_sku_name ilike '%A100%'   or
     arm_sku_name ilike '%H100%'   or
     arm_sku_name ilike '%H200%'   or
