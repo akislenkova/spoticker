@@ -13,13 +13,9 @@ GRAPH_URL = (
     "?api-version=2021-03-01"
 )
 
-# Linux spot VM prices only — Windows SKUs appear in Azure's catalog at anomalously
-# low prices (lower than Linux) which corrupts min-price aggregation.
-SPOT_FILTER = (
-    "serviceName eq 'Virtual Machines'"
-    " and contains(skuName, 'Spot')"
-    " and not contains(productName, 'Windows')"
-)
+# All spot VM prices — Windows entries are filtered client-side (see scraper.py).
+# Azure's oData API doesn't support `not contains()`.
+SPOT_FILTER = "serviceName eq 'Virtual Machines' and contains(skuName, 'Spot')"
 
 # Eviction rate per SKU per region — 28-day trailing buckets (tenant-level SpotResources)
 # https://learn.microsoft.com/en-us/azure/virtual-machines/spot-vms#pricing-and-eviction-history

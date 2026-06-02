@@ -118,7 +118,13 @@ def run() -> None:
         key = (p["sku_name"], p["region"])
         if key not in deduped or (p["retail_price"] or 0) < (deduped[key]["retail_price"] or 0):
             deduped[key] = p
-    prices = [p for p in deduped.values() if _is_target_sku(p.get("arm_sku_name"))]
+    prices = [
+        p for p in deduped.values()
+        if _is_target_sku(p.get("arm_sku_name"))
+        # Windows SKUs appear at anomalously low spot prices in Azure's catalog;
+        # exclude them so Linux pricing is always used for min-price aggregation.
+        and "windows" not in (p.get("product_name") or "").lower()
+    ]
     print(f"  {len(prices)} target rows after dedup (from {len(all_prices)} total spot SKUs)")
     _upsert("azure_spot_prices", prices)
 
