@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { MatrixData, CellData } from "@/lib/matrix";
-import { CellColor, GpuLabel } from "@/lib/gpu-map";
+import { CellColor, GpuLabel, MATRIX_SECTION_BEFORE } from "@/lib/gpu-map";
 import { formatRegion } from "@/lib/format-region";
 
 const AWS_SPS_INSTANCE: Partial<Record<GpuLabel, string>> = {
@@ -106,6 +106,22 @@ function regionRows(
 const SUMM_W = "w-[200px] min-w-[200px] max-w-[200px]";
 const SUMM_TD = `${SUMM_W} p-1 align-top`;
 
+function summaryMetricText(
+  cloud: string,
+  usesSps: boolean,
+  spsScore: number | undefined,
+  metricLabel: string | null,
+  regionCount: number
+): string {
+  if (usesSps && spsScore != null) return `SPS ${spsScore}/10`;
+  if (!metricLabel) {
+    return `${regionCount} region${regionCount !== 1 ? "s" : ""}`;
+  }
+  if (cloud === "vast") return `rel ${metricLabel}`;
+  if (cloud === "runpod" || cloud === "coreweave" || cloud === "nebius") return metricLabel;
+  return `evict ${metricLabel}`;
+}
+
 function SummaryCell({
   gpu,
   cloud,
@@ -139,11 +155,13 @@ function SummaryCell({
   const usesSps = cloud === "aws" && awsUsesSps && best.spsScore != null;
   const color = usesSps ? spsColor(best.spsScore!) : best.cell.color;
 
-  const metricText = usesSps
-    ? `SPS ${best.spsScore}/10`
-    : best.cell.evictionLabel
-      ? `evict ${best.cell.evictionLabel}`
-      : `${rows.length} region${rows.length !== 1 ? "s" : ""}`;
+  const metricText = summaryMetricText(
+    cloud,
+    usesSps,
+    best.spsScore,
+    best.cell.evictionLabel,
+    rows.length
+  );
 
   return (
     <td className={SUMM_TD}>
@@ -224,7 +242,7 @@ function CloudPanel({
             <th className="text-right font-mono text-[9px] text-[#2d4038] uppercase tracking-wide pb-1 pr-4 font-normal">$/hr</th>
             <th className="text-left font-mono text-[9px] text-[#2d4038] uppercase tracking-wide pb-1 pr-4 font-normal">Instance</th>
             <th className="text-right font-mono text-[9px] text-[#2d4038] uppercase tracking-wide pb-1 font-normal">
-              {usesSps ? "SPS" : "Evict"}
+              {usesSps ? "SPS" : cloud === "vast" ? "Rel." : cloud === "runpod" ? "Notice" : "Evict"}
             </th>
           </tr>
         </thead>
@@ -353,6 +371,17 @@ export default function PriceMatrix({
             const expandedClouds = clouds.filter(cloud =>
               expanded.has(`${row.gpu}::${cloud}`)
             );
+            const sectionLabel = MATRIX_SECTION_BEFORE[row.gpu];
+            const sectionRow = sectionLabel ? (
+              <tr key={`section-${sectionLabel}`} className="bg-[rgba(0,4,3,0.85)]">
+                <td
+                  colSpan={numCols}
+                  className="px-4 py-1.5 font-mono text-[9px] uppercase tracking-[0.25em] text-[#3a5a48] border-t border-[rgba(0,255,136,0.08)]"
+                >
+                  {sectionLabel}
+                </td>
+              </tr>
+            ) : null;
             const gpuRow = (
               <tr
                 key={row.gpu}
@@ -376,7 +405,9 @@ export default function PriceMatrix({
               </tr>
             );
 
-            if (expandedClouds.length === 0) return [gpuRow];
+            if (expandedClouds.length === 0) {
+              return sectionRow ? [sectionRow, gpuRow] : [gpuRow];
+            }
 
             const expansionRow = (
               <tr key={`${row.gpu}::expansion`}>
@@ -400,7 +431,9 @@ export default function PriceMatrix({
               </tr>
             );
 
-            return [gpuRow, expansionRow];
+            return sectionRow
+              ? [sectionRow, gpuRow, expansionRow]
+              : [gpuRow, expansionRow];
           })}
         </tbody>
       </table>

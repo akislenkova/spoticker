@@ -14,10 +14,10 @@ BUNDLES_URL = "https://console.vast.ai/api/v0/bundles/"
 
 # Normalized GpuLabel values we persist (must match ui/lib/gpu-map.ts)
 GPU_LABELS = (
-    "B300",
-    "B200",
     "H200",
     "H100",
+    "B300",
+    "B200",
     "A100 80GB",
     "A100 40GB",
     "V100",

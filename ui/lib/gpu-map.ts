@@ -14,11 +14,16 @@ export type GpuLabel =
   | "CPU (Intel)"
   | "CPU (ARM)";
 
+/** Section header row shown in the price matrix before these GPUs. */
+export const MATRIX_SECTION_BEFORE: Partial<Record<GpuLabel, string>> = {
+  B300: "Blackwell",
+};
+
 export const GPU_ORDER: GpuLabel[] = [
-  "B300",
-  "B200",
   "H200",
   "H100",
+  "B300",
+  "B200",
   "A100 80GB",
   "A100 40GB",
   "V100",
@@ -237,14 +242,21 @@ export function nebiusGpu(labelOrModel: string): GpuLabel | null {
   return null;
 }
 
-/** Vast.ai host reliability (0–1) → display label and traffic-light color. */
+/** Vast.ai host reliability (0–1 fraction, or 0–100 percent) as a display percent. */
+export function vastReliabilityPercent(reliability: number): number {
+  const pct = reliability > 1 ? reliability : reliability * 100;
+  return Math.round(pct * 10) / 10;
+}
+
+/** Vast.ai host reliability → display label and traffic-light color (high % = green). */
 export function vastReliabilityLabel(reliability: number): string {
-  return `${(reliability * 100).toFixed(1)}%`;
+  return `${vastReliabilityPercent(reliability).toFixed(1)}%`;
 }
 
 export function vastReliabilityColor(reliability: number): CellColor {
-  if (reliability >= 0.99) return "green";
-  if (reliability >= 0.97) return "yellow";
+  const pct = vastReliabilityPercent(reliability);
+  if (pct >= 99) return "green";
+  if (pct >= 97) return "yellow";
   return "red";
 }
 
