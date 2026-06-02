@@ -53,6 +53,38 @@ type CellEntry = {
   href: string;
 };
 
+// ── AWS GPU count normalization ───────────────────────────────────────────────
+// AWS spot prices are per-instance/hr; GCP prices are per-GPU/hr.  Divide by
+// GPU count so all three clouds show a comparable per-GPU/hr figure.
+// CPU instance types all have count 1, so they are unaffected.
+const AWS_INSTANCE_GPU_COUNT: Record<string, number> = {
+  // H200 (p5e)
+  "p5e.48xlarge": 8,
+  // H100 (p5)
+  "p5.48xlarge": 8,
+  // A100 80GB (p4de)
+  "p4de.24xlarge": 8,
+  // A100 40GB (p4d)
+  "p4d.24xlarge": 8,
+  // V100 (p3)
+  "p3.2xlarge": 1, "p3.8xlarge": 4, "p3.16xlarge": 8, "p3dn.24xlarge": 8,
+  // L40S (g6e)
+  "g6e.xlarge": 1, "g6e.2xlarge": 1, "g6e.4xlarge": 1, "g6e.8xlarge": 1,
+  "g6e.12xlarge": 4, "g6e.48xlarge": 8,
+  // L4 (g6)
+  "g6.xlarge": 1, "g6.2xlarge": 1, "g6.4xlarge": 1, "g6.8xlarge": 1,
+  "g6.12xlarge": 4, "g6.16xlarge": 1, "g6.24xlarge": 4, "g6.48xlarge": 8,
+  // A10G (g5)
+  "g5.xlarge": 1, "g5.2xlarge": 1, "g5.4xlarge": 1, "g5.8xlarge": 1,
+  "g5.12xlarge": 4, "g5.16xlarge": 1, "g5.24xlarge": 4, "g5.48xlarge": 8,
+  // T4 (g4dn)
+  "g4dn.xlarge": 1, "g4dn.2xlarge": 1, "g4dn.4xlarge": 1, "g4dn.8xlarge": 1,
+  "g4dn.12xlarge": 4, "g4dn.16xlarge": 1, "g4dn.metal": 8,
+};
+function awsGpuCount(instanceType: string): number {
+  return AWS_INSTANCE_GPU_COUNT[instanceType] ?? 1;
+}
+
 // ── AWS ──────────────────────────────────────────────────────────────────────
 
 async function fetchAws(): Promise<Map<string, CellEntry>> {
@@ -79,11 +111,14 @@ async function fetchAws(): Promise<Map<string, CellEntry>> {
     const evictionLabel = entry != null ? awsRangeLabel(entry.r) : null;
     const color = entry != null ? awsRangeColor(entry.r) : "gray";
 
+    const gpuCount = awsGpuCount(row.instance_type);
+    const pricePerGpu = row.price_usd / gpuCount;
+
     const key = `${gpu}::aws:${row.region}`;
     const existing = map.get(key);
-    if (!existing || row.price_usd < existing.price) {
+    if (!existing || pricePerGpu < existing.price) {
       map.set(key, {
-        price: row.price_usd,
+        price: pricePerGpu,
         evictionLabel,
         color,
         instanceLabel: row.instance_type,

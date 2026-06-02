@@ -69,7 +69,10 @@ const AZURE_PATTERNS: [RegExp, GpuLabel][] = [
   [/A100/i, "A100 80GB"],
   [/V100/i, "V100"],
   [/L40S/i, "L40S"],
-  [/L4/i, "L4"],
+  // \bL4\b avoids matching Lsv3 storage VMs like Standard_L48as_v3 (L4 followed by 8).
+  // Azure has no L4 GPU spot offering, so in practice this pattern is a no-op there;
+  // it's kept so the recommend engine doesn't misclassify hypothetical future SKUs.
+  [/\bL4\b/i, "L4"],
   [/A10/i, "A10G"],
   [/T4/i, "T4"],
   // CPU types — D-series only (representative family per architecture)
