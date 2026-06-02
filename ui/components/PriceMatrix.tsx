@@ -6,11 +6,19 @@ import { CellColor, GpuLabel } from "@/lib/gpu-map";
 import { formatRegion } from "@/lib/format-region";
 
 const AWS_SPS_INSTANCE: Partial<Record<GpuLabel, string>> = {
-  T4: "g4dn.xlarge",
-  A10G: "g5.xlarge",
-  L4: "g6.xlarge",
-  A100: "p4d.24xlarge",
+  // GPU
+  H200: "p5e.48xlarge",
   H100: "p5.48xlarge",
+  "A100 80GB": "p4de.24xlarge",
+  "A100 40GB": "p4d.24xlarge",
+  L40S: "g6e.xlarge",
+  L4: "g6.xlarge",
+  A10G: "g5.xlarge",
+  T4: "g4dn.xlarge",
+  // CPU — pick a representative mid-range size for SPS
+  "CPU (AMD)": "m7a.xlarge",
+  "CPU (Intel)": "m7i.xlarge",
+  "CPU (Graviton)": "m7g.xlarge",
 };
 
 function spsScoreForCell(
@@ -291,7 +299,7 @@ export default function PriceMatrix({
         <thead>
           <tr className="bg-[rgba(2,10,7,0.95)]">
             <th className="px-4 py-3 text-left font-mono text-[10px] tracking-[0.2em] uppercase text-[#3a5a48] w-20">
-              GPU
+              Type
             </th>
             {clouds.map(cloud => (
               <th

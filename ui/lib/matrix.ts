@@ -110,8 +110,27 @@ function telemetryLabel(evictionsPerHour: number): string {
   return `~${daily.toFixed(1)}%/day`;
 }
 
-const AZURE_GPU_PRICE_FILTER =
-  "arm_sku_name.ilike.%T4%,arm_sku_name.ilike.%A10%,arm_sku_name.ilike.%L4%,arm_sku_name.ilike.%V100%,arm_sku_name.ilike.%A100%,arm_sku_name.ilike.%H100%";
+const AZURE_GPU_PRICE_FILTER = [
+  "arm_sku_name.ilike.%T4%",
+  "arm_sku_name.ilike.%A10%",
+  "arm_sku_name.ilike.%L4%",
+  "arm_sku_name.ilike.%L40S%",
+  "arm_sku_name.ilike.%A100%",
+  "arm_sku_name.ilike.%H100%",
+  "arm_sku_name.ilike.%H200%",
+  // AMD EPYC D/E-series v4/v5 (e.g. Standard_D4as_v5)
+  "arm_sku_name.ilike.%as_v4%",
+  "arm_sku_name.ilike.%as_v5%",
+  "arm_sku_name.ilike.%ads_v4%",
+  "arm_sku_name.ilike.%ads_v5%",
+  // ARM Ampere D/E-series v4/v5 (e.g. Standard_D4ps_v5)
+  "arm_sku_name.ilike.%ps_v4%",
+  "arm_sku_name.ilike.%ps_v5%",
+  "arm_sku_name.ilike.%pls_v5%",
+  // Intel D/E-series v5 (e.g. Standard_D4s_v5, Standard_D4ds_v5)
+  "arm_sku_name.ilike.%ds_v5%",
+  "arm_sku_name.ilike.%_s_v5%",
+].join(",");
 
 type AzurePriceRow = {
   arm_sku_name: string | null;
@@ -165,7 +184,20 @@ async function fetchAzure(): Promise<Map<string, CellEntry>> {
         .from("azure_spot_eviction_rates")
         .select("skuName, location, evictionRate, fetched_at")
         .or(
-          "skuName.ilike.%t4%,skuName.ilike.%a10%,skuName.ilike.%l4%,skuName.ilike.%v100%,skuName.ilike.%a100%,skuName.ilike.%h100%"
+          [
+            "skuName.ilike.%t4%",
+            "skuName.ilike.%a10%",
+            "skuName.ilike.%l4%",
+            "skuName.ilike.%l40s%",
+            "skuName.ilike.%a100%",
+            "skuName.ilike.%h100%",
+            "skuName.ilike.%h200%",
+            "skuName.ilike.%as_v4%",
+            "skuName.ilike.%as_v5%",
+            "skuName.ilike.%ps_v4%",
+            "skuName.ilike.%ps_v5%",
+            "skuName.ilike.%ds_v5%",
+          ].join(",")
         )
         .order("fetched_at", { ascending: false })
         .limit(2000),
@@ -232,8 +264,22 @@ async function fetchAzure(): Promise<Map<string, CellEntry>> {
 
 // ── GCP ───────────────────────────────────────────────────────────────────────
 
-const GCP_GPU_FILTER =
-  "description.ilike.%T4%,description.ilike.%A10%,description.ilike.%L4%,description.ilike.%V100%,description.ilike.%A100%,description.ilike.%H100%";
+const GCP_GPU_FILTER = [
+  "description.ilike.%T4%",
+  "description.ilike.%A10%",
+  "description.ilike.%L4%",
+  "description.ilike.%L40S%",
+  "description.ilike.%A100%",
+  "description.ilike.%H100%",
+  "description.ilike.%H200%",
+  // CPU types — GCP billing catalog description prefixes
+  "description.ilike.%N2D%",
+  "description.ilike.%C2D%",
+  "description.ilike.%T2A%",
+  "description.ilike.%N2 %",
+  "description.ilike.%C2 %",
+  "description.ilike.%C3 %",
+].join(",");
 
 async function fetchGcp(): Promise<Map<string, CellEntry>> {
   const { data, error } = await supabase

@@ -31,27 +31,58 @@ export type RecommendationResponse = {
 };
 
 const WORKLOAD_NOTES: Record<string, [string, string]> = {
-  T4:         ["batch jobs, smaller fine-tunes, cost-sensitive inference",
-               "real-time inference without checkpointing, large model training"],
-  A10G:       ["batch inference, mid-size fine-tunes, A10G-optimised workloads",
-               "stateful training without checkpointing"],
-  L4:         ["transformer inference, batch jobs, cost-sensitive fine-tuning",
-               "real-time latency-sensitive serving"],
-  V100:       ["batch training, legacy model fine-tunes",
-               "new workloads (A100 is cheaper and faster), real-time inference"],
-  A100:       ["large model training, fine-tuning, high-throughput batch inference",
-               "real-time inference, stateful training without checkpointing"],
-  H100:       ["frontier model training, maximum throughput batch inference",
-               "cost-sensitive workloads, real-time serving where A100 suffices"],
+  T4:               ["batch jobs, smaller fine-tunes, cost-sensitive inference",
+                     "real-time inference without checkpointing, large model training"],
+  A10G:             ["batch inference, mid-size fine-tunes, A10G-optimised workloads",
+                     "stateful training without checkpointing"],
+  L4:               ["transformer inference, batch jobs, cost-sensitive fine-tuning",
+                     "real-time latency-sensitive serving"],
+  L40S:             ["mid-size training, graphics/rendering workloads, FP8 inference",
+                     "stateful training without checkpointing"],
+  "A100 40GB":      ["large model training, fine-tuning, high-throughput batch inference",
+                     "real-time inference, stateful training without checkpointing"],
+  "A100 80GB":      ["very large model training requiring >40 GB VRAM, MoE fine-tuning",
+                     "real-time inference, stateful training without checkpointing"],
+  H100:             ["frontier model training, maximum throughput batch inference",
+                     "cost-sensitive workloads, real-time serving where A100 suffices"],
+  H200:             ["cutting-edge frontier training, HBM3e memory-bound workloads",
+                     "cost-sensitive use cases — use H100 or A100 instead"],
+  "CPU (AMD)":      ["CPU-bound batch jobs, data preprocessing, general-purpose compute",
+                     "GPU-accelerated training or inference"],
+  "CPU (Intel)":    ["CPU-bound batch jobs, data preprocessing, general-purpose compute",
+                     "GPU-accelerated training or inference"],
+  "CPU (Graviton)": ["cost-optimised CPU workloads, Arm-native software, CI/CD",
+                     "x86-only software, GPU-accelerated workloads"],
 };
 
 const GPU_COUNTS: Record<string, number> = {
+  // T4 (g4dn)
   "g4dn.xlarge": 1, "g4dn.2xlarge": 1, "g4dn.4xlarge": 1,
   "g4dn.8xlarge": 1, "g4dn.12xlarge": 4, "g4dn.16xlarge": 1, "g4dn.metal": 8,
+  // A10G (g5)
   "g5.xlarge": 1, "g5.2xlarge": 1, "g5.4xlarge": 1, "g5.8xlarge": 1,
   "g5.12xlarge": 4, "g5.16xlarge": 1, "g5.24xlarge": 4, "g5.48xlarge": 8,
-  "p3.2xlarge": 1, "p3.8xlarge": 4, "p3.16xlarge": 8, "p3dn.24xlarge": 8,
-  "p4d.24xlarge": 8, "p4de.24xlarge": 8, "p5.48xlarge": 8,
+  // L4 (g6)
+  "g6.xlarge": 1, "g6.2xlarge": 1, "g6.4xlarge": 1, "g6.8xlarge": 1,
+  "g6.12xlarge": 4, "g6.16xlarge": 1, "g6.24xlarge": 4, "g6.48xlarge": 8,
+  // L40S (g6e)
+  "g6e.xlarge": 1, "g6e.2xlarge": 1, "g6e.4xlarge": 1, "g6e.8xlarge": 1,
+  "g6e.12xlarge": 4, "g6e.48xlarge": 8,
+  // A100 40GB (p4d)
+  "p4d.24xlarge": 8,
+  // A100 80GB (p4de)
+  "p4de.24xlarge": 8,
+  // H100 (p5)
+  "p5.48xlarge": 8,
+  // H200 (p5e)
+  "p5e.48xlarge": 8,
+  // CPU instances (1 = N/A GPUs, used only for context)
+  "m7a.xlarge": 1, "m7a.2xlarge": 1, "m7a.4xlarge": 1,
+  "c7a.xlarge": 1, "c7a.2xlarge": 1, "c7a.4xlarge": 1,
+  "m7i.xlarge": 1, "m7i.2xlarge": 1, "m7i.4xlarge": 1,
+  "c7i.xlarge": 1, "c7i.2xlarge": 1, "c7i.4xlarge": 1,
+  "m7g.xlarge": 1, "m7g.2xlarge": 1, "m7g.4xlarge": 1,
+  "c7g.xlarge": 1, "c7g.2xlarge": 1, "c7g.4xlarge": 1,
 };
 
 const RISK_TIER: Record<string, string> = {
@@ -106,7 +137,20 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
         .from("azure_spot_eviction_rates")
         .select("skuName, location, evictionRate, fetched_at")
         .or(
-          "skuName.ilike.%t4%,skuName.ilike.%a10%,skuName.ilike.%l4%,skuName.ilike.%v100%,skuName.ilike.%a100%,skuName.ilike.%h100%"
+          [
+            "skuName.ilike.%t4%",
+            "skuName.ilike.%a10%",
+            "skuName.ilike.%l4%",
+            "skuName.ilike.%l40s%",
+            "skuName.ilike.%a100%",
+            "skuName.ilike.%h100%",
+            "skuName.ilike.%h200%",
+            "skuName.ilike.%as_v4%",
+            "skuName.ilike.%as_v5%",
+            "skuName.ilike.%ps_v4%",
+            "skuName.ilike.%ps_v5%",
+            "skuName.ilike.%ds_v5%",
+          ].join(",")
         )
         .order("fetched_at", { ascending: false })
         .limit(2000),
@@ -114,7 +158,20 @@ async function buildPricingContext(): Promise<{ context: string; timestamp: stri
         .from("gcp_spot_prices")
         .select("description, regions, price_usd_per_hour")
         .or(
-          "description.ilike.%T4%,description.ilike.%A10%,description.ilike.%L4%,description.ilike.%V100%,description.ilike.%A100%,description.ilike.%H100%"
+          [
+            "description.ilike.%T4%",
+            "description.ilike.%A10%",
+            "description.ilike.%L4%",
+            "description.ilike.%L40S%",
+            "description.ilike.%A100%",
+            "description.ilike.%H100%",
+            "description.ilike.%H200%",
+            "description.ilike.%N2D%",
+            "description.ilike.%C2D%",
+            "description.ilike.%T2A%",
+            "description.ilike.%N2 %",
+            "description.ilike.%C3 %",
+          ].join(",")
         ),
     ]);
 

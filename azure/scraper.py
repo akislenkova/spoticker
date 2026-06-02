@@ -12,6 +12,7 @@ az CLI login, VS Code login, etc. No extra config needed if you're logged in via
 """
 
 import os
+import re
 from datetime import datetime, timezone
 
 import requests
@@ -36,15 +37,26 @@ HEADERS = {
 
 BATCH = 500
 
-# Match ui/lib/gpu-map.ts Azure patterns — only persist GPU SKUs (keeps table small)
-_GPU_ARM_MARKERS = ("T4", "A10", "L4", "V100", "A100", "H100")
+# GPU keyword markers — match ui/lib/gpu-map.ts Azure patterns
+_GPU_ARM_MARKERS = ("T4", "A10", "L4", "L40S", "A100", "H100", "H200")
+
+# CPU SKU patterns — D/E-series AMD, Intel, and ARM (Ampere Altra)
+# Matches Standard_D4as_v5 (AMD), Standard_D4ps_v5 (ARM), Standard_D4s_v5 (Intel)
+_CPU_ARM_PATTERNS = (
+    re.compile(r"Standard_[A-Za-z]\d+a[sd]?s_v[45]", re.I),  # AMD EPYC
+    re.compile(r"Standard_[A-Za-z]\d+p[ls]?s_v[45]", re.I),  # ARM Ampere Altra
+    re.compile(r"Standard_[A-Za-z]\d+d?s_v5", re.I),          # Intel Sapphire Rapids
+)
 
 
-def _is_gpu_arm(arm_sku_name: str | None) -> bool:
+def _is_target_sku(arm_sku_name: str | None) -> bool:
+    """Return True for GPU SKUs and representative CPU SKUs (D/E-series v4/v5)."""
     if not arm_sku_name:
         return False
     u = arm_sku_name.upper()
-    return any(m in u for m in _GPU_ARM_MARKERS)
+    if any(m in u for m in _GPU_ARM_MARKERS):
+        return True
+    return any(p.search(arm_sku_name) for p in _CPU_ARM_PATTERNS)
 
 
 def _upsert(table: str, rows: list[dict]) -> None:
@@ -105,8 +117,8 @@ def run() -> None:
         key = (p["sku_name"], p["region"])
         if key not in deduped or (p["retail_price"] or 0) < (deduped[key]["retail_price"] or 0):
             deduped[key] = p
-    prices = [p for p in deduped.values() if _is_gpu_arm(p.get("arm_sku_name"))]
-    print(f"  {len(prices)} GPU rows after dedup (from {len(all_prices)} total spot SKUs)")
+    prices = [p for p in deduped.values() if _is_target_sku(p.get("arm_sku_name"))]
+    print(f"  {len(prices)} target rows after dedup (from {len(all_prices)} total spot SKUs)")
     _upsert("azure_spot_prices", prices)
 
     print("Fetching eviction rates from Resource Graph …")

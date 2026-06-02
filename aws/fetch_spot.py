@@ -20,12 +20,31 @@ REGIONS = [
 ]
 
 SPOT_INSTANCE_TYPES = [
-    "m5.xlarge", "m5.2xlarge", "m6i.xlarge",
-    "c5.xlarge", "c5.2xlarge", "c6i.xlarge",
-    "r5.xlarge", "r5.2xlarge",
+    # ── GPU: H200 ──────────────────────────────────────────────────────────────
+    "p5e.48xlarge",
+    # ── GPU: H100 ─────────────────────────────────────────────────────────────
+    "p5.48xlarge",
+    # ── GPU: A100 80GB (p4de = SXM4 80 GB) ───────────────────────────────────
+    "p4de.24xlarge",
+    # ── GPU: A100 40GB (p4d = SXM4 40 GB) ────────────────────────────────────
+    "p4d.24xlarge",
+    # ── GPU: L40S ─────────────────────────────────────────────────────────────
+    "g6e.xlarge", "g6e.2xlarge", "g6e.12xlarge", "g6e.48xlarge",
+    # ── GPU: L4 ───────────────────────────────────────────────────────────────
+    "g6.xlarge", "g6.2xlarge", "g6.12xlarge", "g6.48xlarge",
+    # ── GPU: A10G ─────────────────────────────────────────────────────────────
+    "g5.xlarge", "g5.2xlarge", "g5.12xlarge", "g5.48xlarge",
+    # ── GPU: T4 ───────────────────────────────────────────────────────────────
     "g4dn.xlarge", "g4dn.2xlarge", "g4dn.12xlarge",
-    "g5.xlarge", "g5.2xlarge",
-    "p3.2xlarge", "p3.8xlarge",
+    # ── CPU: AMD EPYC (m7a / c7a) ─────────────────────────────────────────────
+    "m7a.xlarge", "m7a.2xlarge", "m7a.4xlarge",
+    "c7a.xlarge", "c7a.2xlarge", "c7a.4xlarge",
+    # ── CPU: Intel (m7i / c7i) ────────────────────────────────────────────────
+    "m7i.xlarge", "m7i.2xlarge", "m7i.4xlarge",
+    "c7i.xlarge", "c7i.2xlarge", "c7i.4xlarge",
+    # ── CPU: Graviton / ARM (m7g / c7g) ───────────────────────────────────────
+    "m7g.xlarge", "m7g.2xlarge", "m7g.4xlarge",
+    "c7g.xlarge", "c7g.2xlarge", "c7g.4xlarge",
 ]
 
 BID_ADVISOR_URL = (

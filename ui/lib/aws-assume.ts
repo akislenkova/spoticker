@@ -6,18 +6,26 @@ import {
 import { EC2Client, GetSpotPlacementScoresCommand } from "@aws-sdk/client-ec2";
 import { getSpottickerCredentials } from "@/lib/aws-credentials";
 
-/** Instance types supported by GetSpotPlacementScores (p3.* is rejected by the API). */
+/** Instance types used for GetSpotPlacementScores — one representative per hardware row. */
 const GPU_INSTANCE_TYPES = [
-  "g4dn.xlarge",
-  "g4dn.2xlarge",
-  "g4dn.12xlarge",
-  "g5.xlarge",
-  "g5.2xlarge",
-  "g5.12xlarge",
-  "g6.xlarge",
-  "g6.2xlarge",
-  "p4d.24xlarge",
-  "p5.48xlarge",
+  // GPU
+  "p5e.48xlarge",     // H200
+  "p5.48xlarge",      // H100
+  "p4de.24xlarge",    // A100 80GB
+  "p4d.24xlarge",     // A100 40GB
+  "g6e.xlarge",       // L40S
+  "g6.xlarge",        // L4
+  "g5.xlarge",        // A10G
+  "g4dn.xlarge",      // T4
+  // CPU — AMD EPYC
+  "m7a.xlarge",
+  "c7a.xlarge",
+  // CPU — Intel
+  "m7i.xlarge",
+  "c7i.xlarge",
+  // CPU — Graviton (ARM)
+  "m7g.xlarge",
+  "c7g.xlarge",
 ];
 
 const REGIONS = [
