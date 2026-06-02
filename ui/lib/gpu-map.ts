@@ -72,12 +72,10 @@ const AZURE_PATTERNS: [RegExp, GpuLabel][] = [
   [/L4/i, "L4"],
   [/A10/i, "A10G"],
   [/T4/i, "T4"],
-  // CPU types — AMD EPYC (as_v suffix pattern)
-  [/Standard_[a-z]\d+a[sd]?s_v[45]/i, "CPU (AMD)"],
-  // CPU types — ARM Ampere Altra (ps_v suffix pattern)
-  [/Standard_[a-z]\d+p[ls]?s_v[45]/i, "CPU (ARM)"],
-  // CPU types — Intel (s_v suffix, no a/p modifier before s)
-  [/Standard_[a-z]\d+d?s_v5/i, "CPU (Intel)"],
+  // CPU types — D-series only (representative family per architecture)
+  [/Standard_D\d+a[sd]?s_v[45]/i, "CPU (AMD)"],    // e.g. Standard_D4as_v5
+  [/Standard_D\d+p[ls]?s_v[45]/i, "CPU (ARM)"],    // e.g. Standard_D4ps_v5
+  [/Standard_D\d+d?s_v5/i,        "CPU (Intel)"],   // e.g. Standard_D4s_v5
 ];
 
 // GCP description keywords → hardware type

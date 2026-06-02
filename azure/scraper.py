@@ -40,12 +40,13 @@ BATCH = 500
 # GPU keyword markers — match ui/lib/gpu-map.ts Azure patterns
 _GPU_ARM_MARKERS = ("T4", "A10", "L4", "L40S", "V100", "A100", "H100", "H200")
 
-# CPU SKU patterns — D/E-series AMD, Intel, and ARM (Ampere Altra)
-# Matches Standard_D4as_v5 (AMD), Standard_D4ps_v5 (ARM), Standard_D4s_v5 (Intel)
+# CPU SKU patterns — D-series only (representative family per architecture).
+# Broad patterns like [A-Za-z]\d+ match E/F/M-series too, producing 50k+ rows.
+# D-series gives good regional coverage while keeping row count manageable.
 _CPU_ARM_PATTERNS = (
-    re.compile(r"Standard_[A-Za-z]\d+a[sd]?s_v[45]", re.I),  # AMD EPYC
-    re.compile(r"Standard_[A-Za-z]\d+p[ls]?s_v[45]", re.I),  # ARM Ampere Altra
-    re.compile(r"Standard_[A-Za-z]\d+d?s_v5", re.I),          # Intel Sapphire Rapids
+    re.compile(r"Standard_D\d+a[sd]?s_v[45]", re.I),   # AMD EPYC  (e.g. D4as_v5)
+    re.compile(r"Standard_D\d+p[ls]?s_v[45]", re.I),   # ARM Ampere (e.g. D4ps_v5)
+    re.compile(r"Standard_D\d+d?s_v5", re.I),           # Intel      (e.g. D4s_v5, D4ds_v5)
 )
 
 
