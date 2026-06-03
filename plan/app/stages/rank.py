@@ -360,4 +360,3 @@ def _build_rationale(c: dict, objective: Objective) -> list[str]:
         notes.append("eviction data unavailable — treat as medium risk")
 
     return notes
-

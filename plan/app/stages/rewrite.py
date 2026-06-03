@@ -102,4 +102,3 @@ def rewrite(
         warnings=[str(w) for w in (result.get("warnings") or [])],
         migration_commands=[str(c) for c in (result.get("migration_commands") or [])],
     )
-

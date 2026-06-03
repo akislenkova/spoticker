@@ -133,4 +133,3 @@ def infer_missing(spec: ExtractedSpec) -> ExtractedSpec:
     spec.missing_fields = spec.still_unknown
 
     return spec
-

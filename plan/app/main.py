@@ -103,4 +103,3 @@ async def analyze(
         user_intent=intent or None,
     )
     return result
-
