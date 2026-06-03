@@ -23,7 +23,7 @@ export async function GET() {
           !supabase.anonKey
             ? "Add NEXT_PUBLIC_SUPABASE_ANON_KEY to ui/.env.local or Vercel env vars."
             : null,
-          “Opening https://xxxx.supabase.co in the browser shows “No API key” - use your app URL instead.”,
+          "Opening https://xxxx.supabase.co in the browser shows 'No API key' - use your app URL instead.",
         ].filter(Boolean)
       : [],
   });
