@@ -115,3 +115,4 @@ class PlanResult(BaseModel):
     rewrite: RewriteResult | None = None
     validation_passed: bool = False
     error: str | None = None
+

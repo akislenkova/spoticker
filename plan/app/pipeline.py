@@ -100,3 +100,4 @@ def run_pipeline(
         rewrite=rewrite_result,
         validation_passed=validation_passed,
     )
+

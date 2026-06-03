@@ -489,3 +489,4 @@ def _split_yaml_docs(content: str) -> list[str]:
     """Split a YAML file on --- document separators."""
     docs = re.split(r"^---\s*$", content, flags=re.MULTILINE)
     return [d.strip() for d in docs if d.strip()]
+

@@ -138,3 +138,4 @@ def validate(spec: ExtractedSpec, rewrite_result: RewriteResult) -> tuple[bool, 
 
     combined = "\n\n".join(outputs) if outputs else "No validators installed — skipped."
     return passed, combined
+
