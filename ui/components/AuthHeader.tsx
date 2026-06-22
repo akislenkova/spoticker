@@ -29,6 +29,12 @@ export default async function AuthHeader() {
           >
             // plan mode
           </Link>
+          <Link
+            href="/mcp"
+            className="text-[#4a6a58] hover:text-[#00ff88] transition-colors tracking-wider"
+          >
+            // mcp
+          </Link>
           {user ? (
             <>
               <span className="text-[#2d4038] truncate max-w-[200px] tracking-wide">{user.email}</span>
