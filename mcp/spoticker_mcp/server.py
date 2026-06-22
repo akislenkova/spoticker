@@ -110,6 +110,79 @@ def _format_candidate(c: dict) -> dict:
 
 
 @mcp.tool()
+def get_spot_placement_score(
+    instance_type: str,
+    target_capacity: int = 1,
+    regions: list[str] | None = None,
+    aws_profile: str | None = None,
+) -> list[dict]:
+    """
+    Query AWS Spot Placement Scores for an instance type via the EC2 API.
+
+    Returns a real-time 1–10 likelihood score per region indicating how likely
+    AWS is to fulfill a spot request right now. Higher = better availability.
+    Scores reflect live capacity — they change frequently and are more actionable
+    than historical eviction buckets for placement decisions.
+
+    Credentials are resolved in order: aws_profile (if given) → env vars
+    (AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY) → ~/.aws/credentials default profile.
+    Needs ec2:DescribeSpotPlacementScores permission.
+
+    Args:
+        instance_type: EC2 instance type, e.g. "p5.48xlarge", "p4d.24xlarge", "g5.xlarge".
+        target_capacity: Number of instances requested (affects score). Default 1.
+        regions: AWS region names to score, e.g. ["us-east-1", "us-west-2"].
+                 Omit to score all regions where the instance type is available.
+        aws_profile: Named profile from ~/.aws/credentials to use, e.g. "work", "staging".
+                     Omit to use the default credential chain.
+
+    Returns:
+        List of {region, score, instance_type} sorted by score descending (10 = best).
+    """
+    import boto3
+    from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
+
+    try:
+        session = boto3.Session(profile_name=aws_profile) if aws_profile else boto3.Session()
+        ec2 = session.client("ec2", region_name="us-east-1")
+
+        kwargs: dict = {
+            "InstanceTypes": [instance_type],
+            "TargetCapacity": target_capacity,
+            "TargetCapacityUnitType": "units",
+            "SingleAvailabilityZone": False,
+        }
+        if regions:
+            kwargs["RegionNames"] = regions
+
+        scores: list[dict] = []
+        paginator = ec2.get_paginator("describe_spot_placement_scores")
+        for page in paginator.paginate(**kwargs):
+            for entry in page.get("SpotPlacementScores", []):
+                scores.append({
+                    "region": entry["Region"],
+                    "score": entry["Score"],
+                    "instance_type": instance_type,
+                })
+
+        scores.sort(key=lambda x: x["score"], reverse=True)
+        return scores
+
+    except NoCredentialsError:
+        raise RuntimeError(
+            "No AWS credentials found. Set AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY "
+            "in the MCP server env, or configure ~/.aws/credentials."
+        )
+    except ProfileNotFound:
+        raise RuntimeError(
+            f"AWS profile {aws_profile!r} not found in ~/.aws/credentials. "
+            "Run `aws configure --profile <name>` to create it."
+        )
+    except ClientError as e:
+        raise RuntimeError(f"AWS API error: {e.response['Error']['Message']}")
+
+
+@mcp.tool()
 def analyze_workload(
     files: list[dict],
     objective: str = "cost_reliability",
