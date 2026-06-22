@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 import requests
 from azure.identity import DefaultAzureCredential
 
-from fetch_spot import fetch_retail_prices, fetch_eviction_rates
+from fetch_spot import fetch_retail_prices, fetch_ondemand_prices, fetch_eviction_rates
 
 SUPABASE_URL = os.environ["SUPABASE_URL"].rstrip("/")
 SUPABASE_KEY = os.environ["SUPABASE_KEY"]
@@ -85,12 +85,17 @@ def _normalize_eviction(row: dict, fetched_at: str) -> dict | None:
     }
 
 
-def _normalize_price(item: dict, fetched_at: str) -> dict:
+def _normalize_price(item: dict, fetched_at: str, ondemand_map: dict | None = None) -> dict:
+    arm_sku = item.get("armSkuName") or ""
+    region = item.get("armRegionName") or ""
+    ondemand_price = None
+    if ondemand_map is not None:
+        ondemand_price = ondemand_map.get((arm_sku.lower(), region.lower()))
     return {
         "fetched_at": fetched_at,
         "sku_name": item.get("skuName"),
-        "arm_sku_name": item.get("armSkuName"),
-        "region": item.get("armRegionName"),
+        "arm_sku_name": arm_sku or None,
+        "region": region or None,
         "location": item.get("location"),
         "retail_price": item.get("retailPrice"),
         "unit_price": item.get("unitPrice"),
@@ -99,17 +104,41 @@ def _normalize_price(item: dict, fetched_at: str) -> dict:
         "product_name": item.get("productName"),
         "unit_of_measure": item.get("unitOfMeasure"),
         "effective_start_date": item.get("effectiveStartDate"),
+        "ondemand_price": ondemand_price,
     }
+
+
+def _build_ondemand_map(ts: str) -> dict:
+    """Fetch non-spot retail prices for GPU SKUs; return (arm_sku_lower, region_lower) → price."""
+    print("Fetching Azure on-demand prices (GPU SKUs) …")
+    raw = fetch_ondemand_prices()
+    ondemand_map: dict = {}
+    for item in raw:
+        arm_sku = (item.get("armSkuName") or "").lower()
+        region = (item.get("armRegionName") or "").lower()
+        price = item.get("retailPrice")
+        product = (item.get("productName") or "").lower()
+        if not arm_sku or not region or price is None:
+            continue
+        if "windows" in product or "spot" in (item.get("skuName") or "").lower():
+            continue
+        key = (arm_sku, region)
+        if key not in ondemand_map or float(price) < ondemand_map[key]:
+            ondemand_map[key] = float(price)
+    print(f"  {len(ondemand_map)} on-demand price entries built")
+    return ondemand_map
 
 
 def run() -> None:
     ts = datetime.now(timezone.utc).isoformat()
     credential = DefaultAzureCredential()
 
+    ondemand_map = _build_ondemand_map(ts)
+
     print("Fetching Azure Retail Prices (spot VMs) …")
     raw_prices = fetch_retail_prices()
     all_prices = [
-        p for p in (_normalize_price(r, ts) for r in raw_prices)
+        p for p in (_normalize_price(r, ts, ondemand_map) for r in raw_prices)
         if p["sku_name"] and p["region"]
     ]
     # Deduplicate on (sku_name, region) — keep lowest retail_price

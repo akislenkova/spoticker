@@ -17,6 +17,18 @@ GRAPH_URL = (
 # Azure's oData API doesn't support `not contains()`.
 SPOT_FILTER = "serviceName eq 'Virtual Machines' and contains(skuName, 'Spot')"
 
+# On-demand retail prices for GPU SKUs only (targeted to keep response size small).
+ONDEMAND_GPU_FILTER = (
+    "serviceName eq 'Virtual Machines'"
+    " and priceType eq 'Retail'"
+    " and ("
+    "contains(armSkuName, 'H200') or contains(armSkuName, 'H100')"
+    " or contains(armSkuName, 'A100') or contains(armSkuName, 'V100')"
+    " or contains(armSkuName, 'A10') or contains(armSkuName, 'L4')"
+    " or contains(armSkuName, 'T4')"
+    ")"
+)
+
 # Eviction rate per SKU per region — 28-day trailing buckets (tenant-level SpotResources)
 # https://learn.microsoft.com/en-us/azure/virtual-machines/spot-vms#pricing-and-eviction-history
 EVICTION_KQL = """
@@ -62,6 +74,15 @@ def fetch_retail_prices(odata_filter: str = SPOT_FILTER) -> list[dict]:
             time.sleep(0.3)
 
     return records
+
+
+def fetch_ondemand_prices() -> list[dict]:
+    """
+    Fetch retail (non-spot) prices for GPU VM SKUs.
+    Returns the same shape as fetch_retail_prices but scoped to GPU families only.
+    Windows SKUs are not excluded here — filter client-side on armSkuName.
+    """
+    return fetch_retail_prices(odata_filter=ONDEMAND_GPU_FILTER)
 
 
 def fetch_eviction_rates(

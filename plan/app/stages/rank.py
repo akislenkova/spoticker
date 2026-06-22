@@ -9,14 +9,15 @@ from app.schemas import (
 
 # GPU compatibility: requested → acceptable (equal or better)
 _GPU_COMPAT: dict[str, list[str]] = {
-    "T4":       ["T4", "A10G", "L4", "V100", "A100-40GB", "A100-80GB", "H100"],
-    "A10G":     ["A10G", "A100-40GB", "A100-80GB", "H100"],
-    "L4":       ["L4", "A10G", "A100-40GB", "A100-80GB", "H100"],
-    "V100":     ["V100", "A100-40GB", "A100-80GB", "H100"],
-    "A100":     ["A100-40GB", "A100-80GB", "H100"],
-    "A100-40GB": ["A100-40GB", "A100-80GB", "H100"],
-    "A100-80GB": ["A100-80GB", "H100"],
-    "H100":     ["H100"],
+    "T4":       ["T4", "A10G", "L4", "V100", "A100-40GB", "A100-80GB", "H100", "H200"],
+    "A10G":     ["A10G", "A100-40GB", "A100-80GB", "H100", "H200"],
+    "L4":       ["L4", "A10G", "A100-40GB", "A100-80GB", "H100", "H200"],
+    "V100":     ["V100", "A100-40GB", "A100-80GB", "H100", "H200"],
+    "A100":     ["A100-40GB", "A100-80GB", "H100", "H200"],
+    "A100-40GB": ["A100-40GB", "A100-80GB", "H100", "H200"],
+    "A100-80GB": ["A100-80GB", "H100", "H200"],
+    "H100":     ["H100", "H200"],
+    "H200":     ["H200"],
 }
 
 _EVICTION_MIDPOINTS: dict[str, float] = {
@@ -29,7 +30,8 @@ _EVICTION_MIDPOINTS: dict[str, float] = {
 
 _AWS_FAMILY_GPU: dict[str, str] = {
     "g4dn": "T4", "g5": "A10G", "g6": "L4",
-    "p3": "V100", "p4d": "A100-40GB", "p4de": "A100-40GB", "p5": "H100",
+    "p3": "V100", "p4d": "A100-40GB", "p4de": "A100-40GB",
+    "p5": "H100", "p5e": "H200", "p5en": "H200",
 }
 _AWS_GPU_COUNTS: dict[str, int] = {
     "g4dn.xlarge": 1, "g4dn.2xlarge": 1, "g4dn.4xlarge": 1,
@@ -37,7 +39,8 @@ _AWS_GPU_COUNTS: dict[str, int] = {
     "g5.xlarge": 1, "g5.2xlarge": 1, "g5.4xlarge": 1, "g5.8xlarge": 1,
     "g5.12xlarge": 4, "g5.16xlarge": 1, "g5.24xlarge": 4, "g5.48xlarge": 8,
     "p3.2xlarge": 1, "p3.8xlarge": 4, "p3.16xlarge": 8, "p3dn.24xlarge": 8,
-    "p4d.24xlarge": 8, "p4de.24xlarge": 8, "p5.48xlarge": 8,
+    "p4d.24xlarge": 8, "p4de.24xlarge": 8,
+    "p5.48xlarge": 8, "p5e.48xlarge": 8, "p5en.48xlarge": 8,
 }
 
 # Rough on-demand price estimates ($/hr total) for savings calculation
@@ -82,6 +85,7 @@ def _eviction_midpoint(label: str | None, gpu_fallback_pct: float = 12.5) -> flo
 
 def _azure_gpu_type(sku_name: str) -> str | None:
     patterns = [
+        (re.compile(r"H200", re.I), "H200"),
         (re.compile(r"H100", re.I), "H100"),
         (re.compile(r"A100.*80", re.I), "A100-80GB"),
         (re.compile(r"A100", re.I), "A100-40GB"),
@@ -98,6 +102,7 @@ def _azure_gpu_type(sku_name: str) -> str | None:
 
 def _gcp_gpu_type(description: str) -> str | None:
     patterns = [
+        (re.compile(r"\bH200\b", re.I), "H200"),
         (re.compile(r"\bH100\b", re.I), "H100"),
         (re.compile(r"\bA100\b", re.I), "A100-40GB"),
         (re.compile(r"\bV100\b", re.I), "V100"),
@@ -203,8 +208,8 @@ def _fetch_candidates_from_supabase(acceptable_gpu_types: list[str]) -> list[dic
             "eviction_label": ev_label,
             "eviction_pct": ev_pct,
             "eviction_confidence": "high" if ev_pct is not None else "low",
-            "ondemand_price": None,
-            "ondemand_url": f"https://azure.microsoft.com/en-us/pricing/details/virtual-machines/linux/",
+            "ondemand_price": row.get("ondemand_price"),
+            "ondemand_url": "https://azure.microsoft.com/en-us/pricing/details/virtual-machines/linux/",
         })
 
     # ── GCP ───────────────────────────────────────────────────────────────────
