@@ -22,10 +22,10 @@ ONDEMAND_GPU_FILTER = (
     "serviceName eq 'Virtual Machines'"
     " and priceType eq 'Retail'"
     " and ("
-    "contains(armSkuName, 'H200') or contains(armSkuName, 'H100')"
-    " or contains(armSkuName, 'A100') or contains(armSkuName, 'V100')"
-    " or contains(armSkuName, 'A10') or contains(armSkuName, 'L4')"
-    " or contains(armSkuName, 'T4')"
+    "contains(skuName, 'H200') or contains(skuName, 'H100')"
+    " or contains(skuName, 'A100') or contains(skuName, 'V100')"
+    " or contains(skuName, 'A10') or contains(skuName, 'L4')"
+    " or contains(skuName, 'T4')"
     ")"
 )
 
