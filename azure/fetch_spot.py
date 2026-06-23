@@ -18,9 +18,9 @@ GRAPH_URL = (
 SPOT_FILTER = "serviceName eq 'Virtual Machines' and contains(skuName, 'Spot')"
 
 # On-demand retail prices for GPU SKUs only (targeted to keep response size small).
+# priceType 'Retail' is not a valid API value; spot entries are filtered client-side in scraper.py.
 ONDEMAND_GPU_FILTER = (
     "serviceName eq 'Virtual Machines'"
-    " and priceType eq 'Retail'"
     " and ("
     "contains(skuName, 'H200') or contains(skuName, 'H100')"
     " or contains(skuName, 'A100') or contains(skuName, 'V100')"
