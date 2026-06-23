@@ -11,8 +11,10 @@ cd spoticker/mcp
 pip install -e .`;
 
 const ENV_VARS = `ANTHROPIC_API_KEY=sk-ant-...          # required for analyze_workload
-SUPABASE_URL=https://xxxx.supabase.co  # required for all tools
-SUPABASE_SERVICE_KEY=eyJ...            # required for all tools`;
+SUPABASE_URL=https://xxxx.supabase.co  # required for get_spot_prices + analyze_workload
+SUPABASE_SERVICE_KEY=eyJ...            # required for get_spot_prices + analyze_workload
+AWS_ACCESS_KEY_ID=AKIA...             # required for get_spot_placement_score
+AWS_SECRET_ACCESS_KEY=...             # required for get_spot_placement_score`;
 
 const CLAUDE_CODE_CONFIG = `// ~/.claude/settings.json  (or project-level .claude/settings.json)
 {
@@ -65,6 +67,15 @@ get_spot_prices(gpu_type="A100-80GB", cloud="aws", min_gpus=4)
 // everything available right now (up to 20 results)
 get_spot_prices()`;
 
+const GET_SPS_EXAMPLE = `// live placement scores for H100 (p5.48xlarge) across all regions
+get_spot_placement_score(instance_type="p5.48xlarge")
+
+// target 4 instances, check specific regions
+get_spot_placement_score(instance_type="p4d.24xlarge", target_capacity=4, regions=["us-east-1", "us-west-2"])
+
+// use a named AWS profile
+get_spot_placement_score(instance_type="g5.xlarge", aws_profile="work")`;
+
 const ANALYZE_EXAMPLE = `// pass a Dockerfile and let the pipeline recommend placement
 analyze_workload(
   files=[{"path": "Dockerfile", "content": "<your dockerfile>"}],
@@ -81,6 +92,7 @@ analyze_workload(
 const AGENT_PROMPTS = [
   "What's the cheapest H100 spot available right now across all clouds?",
   "Get me 4× A100-80GB options under $12/hr, preferably with low eviction.",
+  "Check AWS Spot Placement Scores for p5.48xlarge across all regions.",
   "Analyze my Dockerfile and recommend the best spot placement for a training job.",
   "Compare AWS vs Azure spot prices for a single A10G GPU.",
   "I need multi-cloud HA for my inference workload — analyze my k8s YAML.",
@@ -100,9 +112,11 @@ export default function McpPage() {
             Spoticker MCP Server
           </h1>
           <p className="text-[#8ec4a6] text-sm font-mono leading-relaxed max-w-2xl">
-            &gt;_ Two tools for any MCP-compatible agent harness.{" "}
+            &gt;_ Three tools for any MCP-compatible agent harness.{" "}
             <span className="text-[#42c880]">get_spot_prices</span> queries live
             GPU spot prices across AWS, Azure, GCP, RunPod, CoreWeave, and Nebius.{" "}
+            <span className="text-[#42c880]">get_spot_placement_score</span> hits
+            the EC2 API for real-time 1–10 availability scores per region.{" "}
             <span className="text-[#42c880]">analyze_workload</span> runs a
             5-stage pipeline to turn your Dockerfile, k8s manifest, or Terraform
             into a ranked placement recommendation with a deployment-ready diff.
@@ -128,7 +142,12 @@ export default function McpPage() {
             <span className="text-[#8ec4a6]">ANTHROPIC_API_KEY</span> is only
             needed for <span className="text-[#8ec4a6]">analyze_workload</span>{" "}
             (stages 2 and 4 call Claude for spec inference and diff generation).
-            Supabase keys are required for both tools.
+            Supabase keys are required for <span className="text-[#8ec4a6]">get_spot_prices</span>{" "}
+            and <span className="text-[#8ec4a6]">analyze_workload</span>.{" "}
+            AWS credentials are only needed for{" "}
+            <span className="text-[#8ec4a6]">get_spot_placement_score</span>{" "}
+            — alternatively, configure <span className="text-[#8ec4a6]">~/.aws/credentials</span>{" "}
+            and pass <span className="text-[#8ec4a6]">aws_profile</span> at call time.
           </p>
         </section>
 
@@ -235,6 +254,63 @@ export default function McpPage() {
             </div>
 
             <CodeBlock label="example calls" code={GET_PRICES_EXAMPLE} />
+          </div>
+
+          {/* get_spot_placement_score */}
+          <div className="rounded border border-[rgba(0,255,136,0.1)] bg-[rgba(4,14,10,0.7)] p-5 space-y-4">
+            <div>
+              <p className="font-mono text-sm font-bold text-[#00ff88]">
+                get_spot_placement_score
+              </p>
+              <p className="font-mono text-xs text-[#6a9a7e] mt-1">
+                Query AWS Spot Placement Scores via the EC2 API. Returns a
+                real-time 1–10 likelihood score per region indicating how likely
+                AWS is to fulfill a spot request right now. More actionable than
+                historical eviction buckets for placement decisions.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              {[
+                {
+                  name: "instance_type",
+                  type: "string",
+                  desc: 'EC2 instance type, e.g. "p5.48xlarge", "p4d.24xlarge", "g5.xlarge"',
+                },
+                {
+                  name: "target_capacity",
+                  type: "int",
+                  desc: "number of instances requested — affects score (default 1)",
+                },
+                {
+                  name: "regions",
+                  type: "list?",
+                  desc: 'AWS region names to score, e.g. ["us-east-1", "us-west-2"]. Omit for all regions.',
+                },
+                {
+                  name: "aws_profile",
+                  type: "string?",
+                  desc: 'named profile from ~/.aws/credentials, e.g. "work". Omit to use default chain.',
+                },
+              ].map((p) => (
+                <div key={p.name} className="flex gap-3 font-mono text-xs">
+                  <span className="text-[#42c880] w-24 shrink-0">{p.name}</span>
+                  <span className="text-[#2d5040] w-14 shrink-0">{p.type}</span>
+                  <span className="text-[#6a9a7e]">{p.desc}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="text-[10px] font-mono text-[#2d4038] border-t border-[rgba(0,255,136,0.06)] pt-3">
+              Returns list of{" "}
+              <span className="text-[#8ec4a6]">
+                &#123; region, score, instance_type &#125;
+              </span>{" "}
+              sorted by score descending (10 = best availability).
+              Needs <span className="text-[#8ec4a6]">ec2:DescribeSpotPlacementScores</span> permission.
+            </div>
+
+            <CodeBlock label="example calls" code={GET_SPS_EXAMPLE} />
           </div>
 
           {/* analyze_workload */}
