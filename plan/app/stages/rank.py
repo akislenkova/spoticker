@@ -324,6 +324,13 @@ def rank(spec: ExtractedSpec, objective: Objective) -> list[PlacementCandidate]:
             savings_pct = int((savings / (ondemand * duration)) * 100)
 
         rationale = _build_rationale(c, objective)
+        if c["gpu_count"] > min_gpus:
+            rationale.append(
+                f"instance provides {c['gpu_count']}x {c['gpu_type']} — smallest "
+                f"available {c['cloud'].upper()} SKU for this GPU type; you requested "
+                f"{min_gpus}, so {c['gpu_count'] - min_gpus} GPU(s) will sit idle unless "
+                f"you pack additional workloads onto the same instance"
+            )
 
         result.append(PlacementCandidate(
             cloud=c["cloud"],

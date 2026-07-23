@@ -32,6 +32,10 @@ Constraints:
 - Never modify resource requests downward.
 - If the source is a Dockerfile, annotate with ARG/ENV only — do not add k8s-specific sections.
 - migration_commands should include apply/deploy steps appropriate to the source type.
+- If the chosen placement's GPU count exceeds the workload's requested GPU count (check
+  "Chosen placement" gpu_count against "resources.gpu_count" below), add a warning stating
+  how many GPUs will be idle and that the instance is billed in full regardless of how many
+  GPUs the workload actually uses.
 """
 
 

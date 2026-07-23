@@ -1,3 +1,4 @@
 #!/bin/bash
-export SPOTICKER_PLAN_DIR="/Users/annak/Downloads/spoticker/plan"
-exec "/Users/annak/Michigan Clubs/misc/spotticker/venv/bin/python3.14" -m spoticker_mcp.server "$@"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export SPOTICKER_PLAN_DIR="$SCRIPT_DIR/../plan"
+exec "$SCRIPT_DIR/../.venv/bin/python3" -m spoticker_mcp.server "$@"

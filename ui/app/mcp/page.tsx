@@ -114,7 +114,7 @@ export default function McpPage() {
           <p className="text-[#8ec4a6] text-sm font-mono leading-relaxed max-w-2xl">
             &gt;_ Three tools for any MCP-compatible agent harness.{" "}
             <span className="text-[#42c880]">get_spot_prices</span> queries live
-            GPU spot prices across AWS, Azure, GCP, RunPod, CoreWeave, and Nebius.{" "}
+            GPU spot prices across AWS, Azure, and GCP.{" "}
             <span className="text-[#42c880]">get_spot_placement_score</span> hits
             the EC2 API for real-time 1–10 availability scores per region.{" "}
             <span className="text-[#42c880]">analyze_workload</span> runs a

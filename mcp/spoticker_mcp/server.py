@@ -9,7 +9,7 @@ from mcp.server.fastmcp import FastMCP
 mcp = FastMCP(
     "spoticker",
     instructions=(
-        "GPU spot price intelligence across AWS, Azure, GCP, RunPod, CoreWeave, and Nebius. "
+        "GPU spot price intelligence across AWS, Azure, and GCP. "
         "Use get_spot_prices for quick price lookups. "
         "Use analyze_workload with a Dockerfile, k8s manifest, or Terraform file to get "
         "a ranked placement recommendation and a deployment-ready diff."
