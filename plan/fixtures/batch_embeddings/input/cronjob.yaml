@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nightly-embeddings
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          containers:
+            - name: embedder
+              image: custom/sentence-transformers:3.0-cuda
+              command:
+                - python
+                - embed_pipeline.py
+                - --model=BAAI/bge-large-en-v1.5
+                - --batch-size=512
+                - --input-s3=s3://my-bucket/docs/
+                - --output-s3=s3://my-bucket/embeddings/
+                - --fp16
+              env:
+                - name: AWS_DEFAULT_REGION
+                  value: us-east-1
+                - name: BATCH_SIZE
+                  value: "512"
+              resources:
+                limits:
+                  nvidia.com/gpu: "1"
+                  memory: "16Gi"
+                  cpu: "8"
+                requests:
+                  nvidia.com/gpu: "1"
+                  memory: "12Gi"
+                  cpu: "4"
+          restartPolicy: OnFailure

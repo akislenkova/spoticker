@@ -1,0 +1,7 @@
+{
+  "workload_kind": "training",
+  "gpu_count_min": 8,
+  "acceptable_gpu_types": ["A100-80GB", "H100"],
+  "must_have_spot_toleration": true,
+  "notes": "Llama-3-70B bf16 FSDP full-shard across 8 GPUs/node; weights+optimizer states+gradients need ~80GB+/GPU even after sharding → A100-80GB or H100 minimum"
+}

@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stable-diffusion-api
+  labels:
+    app: stable-diffusion-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stable-diffusion-api
+  template:
+    metadata:
+      labels:
+        app: stable-diffusion-api
+    spec:
+      containers:
+        - name: sd-api
+          image: ghcr.io/huggingface/text-generation-inference:2.0
+          command:
+            - python
+            - -m
+            - diffusers.serve
+            - --model
+            - stabilityai/stable-diffusion-xl-base-1.0
+            - --precision
+            - fp16
+            - --port
+            - "7860"
+          env:
+            - name: MODEL_ID
+              value: stabilityai/stable-diffusion-xl-base-1.0
+            - name: PRECISION
+              value: fp16
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-secret
+                  key: token
+          resources:
+            limits:
+              nvidia.com/gpu: "1"
+              memory: "24Gi"
+              cpu: "8"
+            requests:
+              nvidia.com/gpu: "1"
+              memory: "16Gi"
+              cpu: "4"
+          ports:
+            - containerPort: 7860
+      restartPolicy: Always

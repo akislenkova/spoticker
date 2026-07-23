@@ -1,0 +1,6 @@
+{
+  "workload_kind": "inference",
+  "gpu_count_min": 1,
+  "acceptable_gpu_types": ["T4", "A10G", "L4", "V100", "A100-40GB", "A100-80GB", "H100"],
+  "notes": "Whisper large-v3 fp16 needs ~10GB VRAM; T4 and up are sufficient for single-worker serving"
+}

@@ -1,0 +1,6 @@
+{
+  "workload_kind": "inference",
+  "gpu_count_min": 1,
+  "acceptable_gpu_types": ["T4", "A10G", "L4", "V100", "A100-40GB", "A100-80GB", "H100"],
+  "notes": "SDXL base 1.0 fp16 needs ~8-10GB VRAM for single-image inference; T4 and up are sufficient"
+}

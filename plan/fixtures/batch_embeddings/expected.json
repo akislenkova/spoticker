@@ -1,0 +1,6 @@
+{
+  "workload_kind": "batch",
+  "gpu_count_min": 1,
+  "acceptable_gpu_types": ["T4", "A10G", "L4", "V100", "A100-40GB", "A100-80GB", "H100"],
+  "notes": "BGE-large embedding batch job fits comfortably in <2GB VRAM fp16; any single GPU is sufficient"
+}

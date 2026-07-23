@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: llama3-70b-finetune
+spec:
+  parallelism: 2
+  completions: 2
+  completionMode: Indexed
+  template:
+    spec:
+      subdomain: llama3-finetune
+      containers:
+        - name: trainer
+          image: pytorch/pytorch:2.3.0-cuda12.1-cudnn8-devel
+          command:
+            - torchrun
+            - --nproc_per_node=8
+            - --nnodes=2
+            - --node_rank=$(JOB_COMPLETION_INDEX)
+            - --master_addr=llama3-70b-finetune-0.llama3-finetune
+            - --master_port=29500
+            - finetune_fsdp.py
+            - --model_name=meta-llama/Meta-Llama-3-70B
+            - --num_train_epochs=2
+            - --per_device_train_batch_size=1
+            - --gradient_accumulation_steps=16
+            - --fsdp=full_shard
+            - --fsdp_transformer_layer_cls=LlamaDecoderLayer
+            - --bf16
+            - --output_dir=/mnt/checkpoints
+          env:
+            - name: JOB_COMPLETION_INDEX
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+            - name: NCCL_DEBUG
+              value: WARN
+            - name: NCCL_IB_DISABLE
+              value: "0"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-secret
+                  key: token
+          resources:
+            limits:
+              nvidia.com/gpu: "8"
+              memory: "640Gi"
+              cpu: "96"
+            requests:
+              nvidia.com/gpu: "8"
+              memory: "512Gi"
+              cpu: "64"
+          volumeMounts:
+            - name: checkpoints
+              mountPath: /mnt/checkpoints
+      volumes:
+        - name: checkpoints
+          persistentVolumeClaim:
+            claimName: llama3-checkpoints-pvc
+      restartPolicy: OnFailure
