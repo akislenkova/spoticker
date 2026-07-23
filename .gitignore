@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 plan/venv/
 plan/.env
+.DS_Store
