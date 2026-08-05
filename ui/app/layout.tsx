@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import AuthHashHandler from "@/components/AuthHashHandler";
 import AuthHeader from "@/components/AuthHeader";
 import "./globals.css";
@@ -30,6 +31,11 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <Script
+          src="https://kya.vouched.id/pixel.js"
+          data-project-id="spoticker-28g3zw"
+          strategy="afterInteractive"
+        />
         <AuthHashHandler />
         <AuthHeader />
         <div className="flex-1">{children}</div>
