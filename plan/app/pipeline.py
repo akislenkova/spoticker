@@ -1,6 +1,8 @@
 """Orchestrates the 5-stage Plan Mode pipeline."""
 from __future__ import annotations
 
+import logging
+
 from app.schemas import (
     ExtractedSpec, Objective, PlanResult, SourceFile,
 )
@@ -9,6 +11,8 @@ from app.stages.infer import infer_missing
 from app.stages.rank import rank
 from app.stages.rewrite import rewrite as rewrite_stage
 from app.stages.validate import validate
+
+logger = logging.getLogger(__name__)
 
 
 def run_pipeline(
@@ -51,7 +55,8 @@ def run_pipeline(
     # If validation failed, retry rewrite once with error context
     if not validation_passed:
         from app.stages.rewrite import rewrite as _rewrite
-        import anthropic, os, json, re
+        from app.llm_json import extract_json_object
+        import anthropic, os
 
         client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
         original = "\n\n---\n\n".join(f"# {f.path}\n{f.content}" for f in spec.source_files)
@@ -71,27 +76,28 @@ def run_pipeline(
                 messages=[{"role": "user", "content": retry_content}],
             )
             raw = msg.content[0].text if msg.content else ""
-            raw = re.sub(r"^```[a-z]*\n?", "", raw.strip())
-            raw = re.sub(r"\n?```$", "", raw.strip())
-            start = raw.find("{")
-            end = raw.rfind("}")
-            if start != -1 and end != -1:
-                result = json.loads(raw[start : end + 1])
-                from app.schemas import DiffChange, RewriteResult
-                rewrite_result = RewriteResult(
-                    unified_diff=str(result.get("unified_diff") or ""),
-                    additions=[
-                        DiffChange(field=a.get("field",""), value=a.get("value"), reason=a.get("reason",""))
-                        for a in (result.get("additions") or []) if isinstance(a, dict)
-                    ],
-                    warnings=[str(w) for w in (result.get("warnings") or [])],
-                    migration_commands=[str(c) for c in (result.get("migration_commands") or [])],
-                )
-                validation_passed, validator_output = validate(spec, rewrite_result)
-                rewrite_result.validation_failed = not validation_passed
-                rewrite_result.validator_output = validator_output
-        except Exception:
-            pass  # Keep original rewrite with validation_failed=True
+            result = extract_json_object(raw)
+            from app.schemas import DiffChange, RewriteResult
+            migration_commands = [str(c) for c in (result.get("migration_commands") or [])]
+            warnings = [str(w) for w in (result.get("warnings") or [])]
+            if migration_commands:
+                from app.stages.rewrite import _MIGRATION_COMMANDS_WARNING
+                warnings.append(_MIGRATION_COMMANDS_WARNING)
+            rewrite_result = RewriteResult(
+                unified_diff=str(result.get("unified_diff") or ""),
+                additions=[
+                    DiffChange(field=a.get("field",""), value=a.get("value"), reason=a.get("reason",""))
+                    for a in (result.get("additions") or []) if isinstance(a, dict)
+                ],
+                warnings=warnings,
+                migration_commands=migration_commands,
+            )
+            validation_passed, validator_output = validate(spec, rewrite_result)
+            rewrite_result.validation_failed = not validation_passed
+            rewrite_result.validator_output = validator_output
+        except Exception as exc:
+            logger.warning("pipeline: rewrite retry-after-validation-failure failed (%s); keeping original rewrite", exc)
+            # Keep original rewrite with validation_failed=True
 
     return PlanResult(
         spec=spec,

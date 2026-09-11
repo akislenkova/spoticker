@@ -1,12 +1,15 @@
 """Stage 2: LLM fills in missing fields from ExtractedSpec."""
 from __future__ import annotations
 import json
+import logging
 import os
-import re
 
 import anthropic
 
+from app.llm_json import extract_json_object
 from app.schemas import ExtractedSpec, WorkloadKind, FieldConfidence
+
+logger = logging.getLogger(__name__)
 
 _SCHEMA_HINT = """
 {
@@ -77,22 +80,17 @@ def infer_missing(spec: ExtractedSpec) -> ExtractedSpec:
             messages=[{"role": "user", "content": user_content}],
         )
         raw = msg.content[0].text if msg.content else ""
-        # Strip markdown code fences if present
-        raw = re.sub(r"^```[a-z]*\n?", "", raw.strip())
-        raw = re.sub(r"\n?```$", "", raw.strip())
-        start = raw.find("{")
-        end = raw.rfind("}")
-        if start == -1 or end == -1:
-            raise ValueError("LLM returned no JSON object")
-        return json.loads(raw[start : end + 1])
+        return extract_json_object(raw)
 
     try:
         result = _call()
     except (json.JSONDecodeError, ValueError) as exc:
+        logger.warning("infer_missing: first LLM call failed to parse (%s), retrying once", exc)
         try:
             # Retry once
             result = _call()
-        except Exception:
+        except Exception as exc2:
+            logger.warning("infer_missing: retry also failed (%s); leaving fields unknown", exc2)
             spec.still_unknown = spec.missing_fields[:]
             return spec
 

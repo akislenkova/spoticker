@@ -1,12 +1,20 @@
 """Stage 4: LLM rewrites the manifest to target a chosen placement."""
 from __future__ import annotations
 import json
+import logging
 import os
-import re
 
 import anthropic
 
+from app.llm_json import extract_json_object
 from app.schemas import ExtractedSpec, PlacementCandidate, RewriteResult, DiffChange
+
+logger = logging.getLogger(__name__)
+
+_MIGRATION_COMMANDS_WARNING = (
+    "migration_commands are LLM-generated suggestions derived from the uploaded "
+    "artifact — review them before running; do not execute automatically."
+)
 
 _SYSTEM = """\
 You modify Kubernetes/Docker/Terraform files to target a specific cloud spot placement.
@@ -70,23 +78,19 @@ def rewrite(
             messages=[{"role": "user", "content": user_content}],
         )
         raw = msg.content[0].text if msg.content else ""
-        raw = re.sub(r"^```[a-z]*\n?", "", raw.strip())
-        raw = re.sub(r"\n?```$", "", raw.strip())
-        start = raw.find("{")
-        end = raw.rfind("}")
-        if start == -1 or end == -1:
-            raise ValueError("LLM returned no JSON object")
-        return json.loads(raw[start : end + 1])
+        return extract_json_object(raw)
 
     try:
         result = _call()
-    except (json.JSONDecodeError, ValueError):
+    except (json.JSONDecodeError, ValueError) as exc:
+        logger.warning("rewrite: first LLM call failed to parse (%s), retrying once", exc)
         try:
             result = _call()
-        except Exception as exc:
+        except Exception as exc2:
+            logger.warning("rewrite: retry also failed (%s)", exc2)
             return RewriteResult(
                 unified_diff="",
-                warnings=[f"Rewrite failed: {exc}"],
+                warnings=[f"Rewrite failed: {exc2}"],
                 validation_failed=True,
             )
 
@@ -100,9 +104,14 @@ def rewrite(
         if isinstance(a, dict)
     ]
 
+    migration_commands = [str(c) for c in (result.get("migration_commands") or [])]
+    warnings = [str(w) for w in (result.get("warnings") or [])]
+    if migration_commands:
+        warnings.append(_MIGRATION_COMMANDS_WARNING)
+
     return RewriteResult(
         unified_diff=str(result.get("unified_diff") or ""),
         additions=additions,
-        warnings=[str(w) for w in (result.get("warnings") or [])],
-        migration_commands=[str(c) for c in (result.get("migration_commands") or [])],
+        warnings=warnings,
+        migration_commands=migration_commands,
     )

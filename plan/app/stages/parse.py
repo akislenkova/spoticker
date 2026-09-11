@@ -1,7 +1,10 @@
 """Stage 1: Deterministic extraction from raw artifact files."""
 from __future__ import annotations
+import logging
 import re
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from app.schemas import (
     ExtractedSpec, SourceFile, SourceType, WorkloadKind,
@@ -440,8 +443,8 @@ def parse_artifact(files: list[SourceFile]) -> ExtractedSpec:
                     for m in miss:
                         if m not in missing:
                             missing.append(m)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("parse_artifact: failed to parse a YAML doc in %s (%s)", yf.path, exc)
 
         spec.workload = combined_workload
         spec.resources = combined_resources
@@ -469,8 +472,8 @@ def parse_artifact(files: list[SourceFile]) -> ExtractedSpec:
                     confidence.update(conf)
                     missing.extend(miss)
                     break
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("parse_artifact: fallback YAML parse failed for %s (%s)", f.path, exc)
 
     # Remove duplicate missing entries and keep order
     seen: set[str] = set()
