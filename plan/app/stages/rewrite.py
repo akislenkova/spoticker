@@ -47,6 +47,34 @@ Constraints:
 """
 
 
+def result_to_rewrite_result(result: dict) -> RewriteResult:
+    """Convert a parsed LLM JSON response into a RewriteResult. Shared by the
+    initial rewrite call and pipeline.py's validation-retry call, so the two
+    call sites can't silently diverge on how additions/warnings/
+    migration_commands are assembled."""
+    additions = [
+        DiffChange(
+            field=str(a.get("field", "")),
+            value=a.get("value"),
+            reason=str(a.get("reason", "")),
+        )
+        for a in (result.get("additions") or [])
+        if isinstance(a, dict)
+    ]
+
+    migration_commands = [str(c) for c in (result.get("migration_commands") or [])]
+    warnings = [str(w) for w in (result.get("warnings") or [])]
+    if migration_commands:
+        warnings.append(_MIGRATION_COMMANDS_WARNING)
+
+    return RewriteResult(
+        unified_diff=str(result.get("unified_diff") or ""),
+        additions=additions,
+        warnings=warnings,
+        migration_commands=migration_commands,
+    )
+
+
 def rewrite(
     spec: ExtractedSpec,
     candidate: PlacementCandidate,
@@ -94,24 +122,4 @@ def rewrite(
                 validation_failed=True,
             )
 
-    additions = [
-        DiffChange(
-            field=str(a.get("field", "")),
-            value=a.get("value"),
-            reason=str(a.get("reason", "")),
-        )
-        for a in (result.get("additions") or [])
-        if isinstance(a, dict)
-    ]
-
-    migration_commands = [str(c) for c in (result.get("migration_commands") or [])]
-    warnings = [str(w) for w in (result.get("warnings") or [])]
-    if migration_commands:
-        warnings.append(_MIGRATION_COMMANDS_WARNING)
-
-    return RewriteResult(
-        unified_diff=str(result.get("unified_diff") or ""),
-        additions=additions,
-        warnings=warnings,
-        migration_commands=migration_commands,
-    )
+    return result_to_rewrite_result(result)

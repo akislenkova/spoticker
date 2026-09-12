@@ -54,8 +54,8 @@ def run_pipeline(
 
     # If validation failed, retry rewrite once with error context
     if not validation_passed:
-        from app.stages.rewrite import rewrite as _rewrite
         from app.llm_json import extract_json_object
+        from app.stages.rewrite import _SYSTEM, result_to_rewrite_result
         import anthropic, os
 
         client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
@@ -67,7 +67,6 @@ def run_pipeline(
             f"## Validator errors\n{validator_output}\n\n"
             f"Please fix the issues and return a corrected JSON response."
         )
-        from app.stages.rewrite import _SYSTEM
         try:
             msg = client.messages.create(
                 model="claude-sonnet-4-6",
@@ -77,21 +76,7 @@ def run_pipeline(
             )
             raw = msg.content[0].text if msg.content else ""
             result = extract_json_object(raw)
-            from app.schemas import DiffChange, RewriteResult
-            migration_commands = [str(c) for c in (result.get("migration_commands") or [])]
-            warnings = [str(w) for w in (result.get("warnings") or [])]
-            if migration_commands:
-                from app.stages.rewrite import _MIGRATION_COMMANDS_WARNING
-                warnings.append(_MIGRATION_COMMANDS_WARNING)
-            rewrite_result = RewriteResult(
-                unified_diff=str(result.get("unified_diff") or ""),
-                additions=[
-                    DiffChange(field=a.get("field",""), value=a.get("value"), reason=a.get("reason",""))
-                    for a in (result.get("additions") or []) if isinstance(a, dict)
-                ],
-                warnings=warnings,
-                migration_commands=migration_commands,
-            )
+            rewrite_result = result_to_rewrite_result(result)
             validation_passed, validator_output = validate(spec, rewrite_result)
             rewrite_result.validation_failed = not validation_passed
             rewrite_result.validator_output = validator_output
