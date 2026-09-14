@@ -1,10 +1,22 @@
 """Spoticker MCP server — GPU spot price tools and workload placement analysis."""
 from __future__ import annotations
 
+import logging
+import os
+
 from dotenv import load_dotenv
 load_dotenv()
 
 from mcp.server.fastmcp import FastMCP
+
+logger = logging.getLogger(__name__)
+
+# analyze_workload input guardrails — file contents get sent to the Anthropic
+# API (up to 3x per call: infer, rewrite, and a possible validation retry),
+# so an unbounded payload is a cheap way to run up API spend.
+_MAX_FILES = 10
+_MAX_TOTAL_BYTES = 200_000  # ~200KB combined; generous for Dockerfiles/manifests
+_MAX_FILE_BYTES = 100_000  # per-file cap, checked before any encoding of the total
 
 mcp = FastMCP(
     "spoticker",
@@ -49,8 +61,9 @@ def get_spot_prices(
             _GPU_COMPAT,
         )
     except ImportError as _e:
+        logger.error("get_spot_prices: failed to import app.stages.rank (%s)", _e, exc_info=True)
         raise RuntimeError(
-            f"Import failed: {_e} | __file__={__file__} | sys.path[:4]={__import__('sys').path[:4]}"
+            "Server misconfiguration: could not load the pricing module. Check the server logs."
         ) from _e
 
     if gpu_type:
@@ -134,13 +147,31 @@ def get_spot_placement_score(
         regions: AWS region names to score, e.g. ["us-east-1", "us-west-2"].
                  Omit to score all regions where the instance type is available.
         aws_profile: Named profile from ~/.aws/credentials to use, e.g. "work", "staging".
-                     Omit to use the default credential chain.
+                     Omit to use the default credential chain. If the
+                     SPOTICKER_ALLOWED_AWS_PROFILES env var is set (comma-separated),
+                     only profiles in that list may be used — this includes the
+                     omitted/default-chain case, which is checked against the
+                     literal name "default" in that list.
 
     Returns:
         List of {region, score, instance_type} sorted by score descending (10 = best).
     """
     import boto3
     from botocore.exceptions import ClientError, NoCredentialsError, ProfileNotFound
+
+    allowed = os.environ.get("SPOTICKER_ALLOWED_AWS_PROFILES")
+    if allowed:
+        allowed_set = {p.strip() for p in allowed.split(",") if p.strip()}
+        # An omitted aws_profile falls through to the default credential
+        # chain — that's still a specific identity, so it's gated too
+        # (as the literal name "default") rather than silently bypassing
+        # the allowlist entirely.
+        effective_profile = aws_profile or "default"
+        if effective_profile not in allowed_set:
+            raise RuntimeError(
+                f"AWS identity {effective_profile!r} is not in SPOTICKER_ALLOWED_AWS_PROFILES "
+                f"(allowed: {sorted(allowed_set)})."
+            )
 
     try:
         session = boto3.Session(profile_name=aws_profile) if aws_profile else boto3.Session()
@@ -156,7 +187,7 @@ def get_spot_placement_score(
             kwargs["RegionNames"] = regions
 
         scores: list[dict] = []
-        paginator = ec2.get_paginator("describe_spot_placement_scores")
+        paginator = ec2.get_paginator("get_spot_placement_scores")
         for page in paginator.paginate(**kwargs):
             for entry in page.get("SpotPlacementScores", []):
                 scores.append({
@@ -210,7 +241,9 @@ def analyze_workload(
           spec             — extracted workload spec (GPU type/count, kind, env, etc.)
           candidates       — top 5 ranked placements with prices and eviction rates
           chosen           — the top recommendation
-          rewrite          — unified diff + migration_commands to update your artifact
+          rewrite          — unified diff + migration_commands to update your artifact.
+                             migration_commands are LLM-generated suggestions — review
+                             before running; do not execute them automatically.
           validation_passed — whether the rewritten artifact passed structural validation
           error            — set if no candidates were found or pipeline failed
     """
@@ -220,6 +253,32 @@ def analyze_workload(
     valid = {o.value for o in Objective}
     if objective not in valid:
         raise ValueError(f"objective must be one of {sorted(valid)}, got {objective!r}")
+
+    if not files:
+        raise ValueError("files must contain at least one {path, content} entry.")
+    if len(files) > _MAX_FILES:
+        raise ValueError(f"Too many files ({len(files)}); max is {_MAX_FILES}.")
+
+    total_bytes = 0
+    for i, f in enumerate(files):
+        if not isinstance(f, dict):
+            raise ValueError(f"files[{i}] must be an object with path/content, got {type(f).__name__}.")
+        path = f.get("path")
+        content = f.get("content")
+        if not isinstance(path, str) or not path:
+            raise ValueError(f"files[{i}].path must be a non-empty string.")
+        if not isinstance(content, str):
+            raise ValueError(f"files[{i}].content must be a string, got {type(content).__name__}.")
+        # Cheap character-count pre-check before any UTF-8 encoding, so a single
+        # huge file is rejected without first paying to encode all of it.
+        if len(content) > _MAX_FILE_BYTES:
+            raise ValueError(f"files[{i}].content is too large; max is {_MAX_FILE_BYTES} bytes.")
+        file_bytes = len(content.encode("utf-8", errors="replace"))
+        if file_bytes > _MAX_FILE_BYTES:
+            raise ValueError(f"files[{i}].content is too large; max is {_MAX_FILE_BYTES} bytes.")
+        total_bytes += file_bytes
+        if total_bytes > _MAX_TOTAL_BYTES:
+            raise ValueError(f"Combined file content exceeds {_MAX_TOTAL_BYTES} bytes.")
 
     source_files = [SourceFile(path=f["path"], content=f["content"]) for f in files]
 

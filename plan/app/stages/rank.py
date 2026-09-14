@@ -121,7 +121,11 @@ def _fetch_candidates_from_supabase(acceptable_gpu_types: list[str]) -> list[dic
     from supabase import create_client  # type: ignore
 
     url = os.environ["SUPABASE_URL"]
-    key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_KEY", "")
+    # Prefer a scoped, least-privilege key (anon/read-only, gated by RLS read
+    # policies on the spot-price tables) over the service_role key, since this
+    # code path only ever reads spot-price data. SUPABASE_SERVICE_KEY remains
+    # supported as a fallback for setups that haven't configured RLS yet.
+    key = os.environ.get("SUPABASE_KEY") or os.environ.get("SUPABASE_SERVICE_KEY", "")
     sb = create_client(url, key)
 
     candidates: list[dict] = []
