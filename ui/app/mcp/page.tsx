@@ -12,7 +12,7 @@ pip install -e .`;
 
 const ENV_VARS = `ANTHROPIC_API_KEY=sk-ant-...          # required for analyze_workload
 SUPABASE_URL=https://xxxx.supabase.co  # required for get_spot_prices + analyze_workload
-SUPABASE_SERVICE_KEY=eyJ...            # required for get_spot_prices + analyze_workload
+SUPABASE_KEY=eyJ...anon...            # anon/public key; read-only access via RLS
 AWS_ACCESS_KEY_ID=AKIA...             # required for get_spot_placement_score
 AWS_SECRET_ACCESS_KEY=...             # required for get_spot_placement_score`;
 
@@ -24,7 +24,7 @@ const CLAUDE_CODE_CONFIG = `// ~/.claude/settings.json  (or project-level .claud
       "env": {
         "ANTHROPIC_API_KEY": "sk-ant-...",
         "SUPABASE_URL": "https://xxxx.supabase.co",
-        "SUPABASE_SERVICE_KEY": "eyJ...service_role..."
+        "SUPABASE_KEY": "eyJ...anon..."
       }
     }
   }
@@ -38,7 +38,7 @@ const CLAUDE_DESKTOP_CONFIG = `// ~/Library/Application Support/Claude/claude_de
       "env": {
         "ANTHROPIC_API_KEY": "sk-ant-...",
         "SUPABASE_URL": "https://xxxx.supabase.co",
-        "SUPABASE_SERVICE_KEY": "eyJ...service_role..."
+        "SUPABASE_KEY": "eyJ...anon..."
       }
     }
   }
@@ -52,7 +52,7 @@ const CURSOR_CONFIG = `// .cursor/mcp.json  (project root)
       "env": {
         "ANTHROPIC_API_KEY": "sk-ant-...",
         "SUPABASE_URL": "https://xxxx.supabase.co",
-        "SUPABASE_SERVICE_KEY": "eyJ...service_role..."
+        "SUPABASE_KEY": "eyJ...anon..."
       }
     }
   }

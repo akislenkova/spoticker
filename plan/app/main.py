@@ -1,6 +1,7 @@
 """FastAPI entry point for the Spoticker Plan Mode service."""
 from __future__ import annotations
 
+import hmac
 import os
 from contextlib import asynccontextmanager
 from typing import Annotated
@@ -22,10 +23,23 @@ _SECRET = os.environ.get("PLAN_SERVICE_SECRET")
 
 _bearer = HTTPBearer(auto_error=False)
 
+# Fail closed: with no secret configured, every request is rejected. Local
+# development can opt out with PLAN_SERVICE_ALLOW_NO_AUTH=1, but that opt-out
+# is ignored on Railway so a missing env var can never reopen production.
+_ALLOW_NO_AUTH = (
+    os.environ.get("PLAN_SERVICE_ALLOW_NO_AUTH") == "1"
+    and not os.environ.get("RAILWAY_ENVIRONMENT")
+)
+
+
 def _check_auth(credentials: HTTPAuthorizationCredentials | None) -> None:
     if not _SECRET:
-        return  # no secret configured — open in local dev
-    if credentials is None or credentials.credentials != _SECRET:
+        if _ALLOW_NO_AUTH:
+            return
+        raise HTTPException(status_code=503, detail="Plan service auth not configured")
+    if credentials is None or not hmac.compare_digest(
+        credentials.credentials.encode(), _SECRET.encode()
+    ):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
