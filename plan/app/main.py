@@ -1,6 +1,7 @@
 """FastAPI entry point for the Spoticker Plan Mode service."""
 from __future__ import annotations
 
+import hmac
 import os
 from contextlib import asynccontextmanager
 from typing import Annotated
@@ -22,10 +23,18 @@ _SECRET = os.environ.get("PLAN_SERVICE_SECRET")
 
 _bearer = HTTPBearer(auto_error=False)
 
+# Railway sets RAILWAY_ENVIRONMENT on deployed services; only local dev may run open.
+_DEPLOYED = bool(os.environ.get("RAILWAY_ENVIRONMENT"))
+
+
 def _check_auth(credentials: HTTPAuthorizationCredentials | None) -> None:
     if not _SECRET:
+        if _DEPLOYED:
+            raise HTTPException(status_code=503, detail="Plan service is not configured.")
         return  # no secret configured — open in local dev
-    if credentials is None or credentials.credentials != _SECRET:
+    if credentials is None or not hmac.compare_digest(
+        credentials.credentials.encode(), _SECRET.encode()
+    ):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 

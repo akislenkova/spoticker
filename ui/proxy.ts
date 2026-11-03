@@ -23,6 +23,7 @@ function needsAuthSession(pathname: string) {
       "/api/aws/disconnect",
       "/api/aws/config",
       "/api/aws/cfn-template",
+      "/api/plan",
     ].includes(pathname)
   );
 }
