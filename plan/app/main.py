@@ -23,15 +23,20 @@ _SECRET = os.environ.get("PLAN_SERVICE_SECRET")
 
 _bearer = HTTPBearer(auto_error=False)
 
-# Railway sets RAILWAY_ENVIRONMENT on deployed services; only local dev may run open.
-_DEPLOYED = bool(os.environ.get("RAILWAY_ENVIRONMENT"))
+# Fail closed: with no secret configured, every request is rejected. Local
+# development can opt out with PLAN_SERVICE_ALLOW_NO_AUTH=1, but that opt-out
+# is ignored on Railway so a missing env var can never reopen production.
+_ALLOW_NO_AUTH = (
+    os.environ.get("PLAN_SERVICE_ALLOW_NO_AUTH") == "1"
+    and not os.environ.get("RAILWAY_ENVIRONMENT")
+)
 
 
 def _check_auth(credentials: HTTPAuthorizationCredentials | None) -> None:
     if not _SECRET:
-        if _DEPLOYED:
-            raise HTTPException(status_code=503, detail="Plan service is not configured.")
-        return  # no secret configured — open in local dev
+        if _ALLOW_NO_AUTH:
+            return
+        raise HTTPException(status_code=503, detail="Plan service auth not configured")
     if credentials is None or not hmac.compare_digest(
         credentials.credentials.encode(), _SECRET.encode()
     ):
