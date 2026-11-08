@@ -6,3 +6,5 @@ plan/.env
 mcp/.env
 mcp/.venv/
 .DS_Store
+.env*
+!.env.example

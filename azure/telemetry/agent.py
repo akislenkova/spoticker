@@ -38,12 +38,14 @@ HEADERS = {
 
 def post(path: str, payload: dict) -> None:
     try:
-        requests.post(
+        resp = requests.post(
             f"{COLLECTOR_URL}{path}",
             json=payload,
             headers=HEADERS,
             timeout=10,
         )
+        if resp.status_code >= 400:
+            print(f"[agent] POST {path} rejected: {resp.status_code} {resp.text[:200]}", file=sys.stderr)
     except Exception as exc:
         print(f"[agent] POST {path} failed: {exc}", file=sys.stderr)
 
