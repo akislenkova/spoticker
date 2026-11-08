@@ -15,7 +15,7 @@ Row lifecycle (monitored_vms.status):
   reprovisioning — last create attempt failed; respawner retries it
 """
 
-import base64
+import tempfile
 import json
 import os
 import subprocess
@@ -51,6 +51,10 @@ FALLBACK_SKUS = [
     "Standard_D2as_v4",
     "Standard_D2s_v5",
     "Standard_D2as_v5",
+    # v7 only: some regions (francecentral, germanywestcentral) restrict this
+    # subscription to v7 sizes. "l" = low-memory, cheapest.
+    "Standard_D2als_v7",
+    "Standard_D2ls_v7",
 ]
 
 # Errors that mean "this SKU has no spot capacity / isn't offered here, try the next one".
@@ -149,7 +153,11 @@ def build_cloud_init(vm_id: str, region: str, sku: str) -> str:
         .replace("{{REGION}}", region)
         .replace("{{SKU}}", sku)
     )
-    return base64.b64encode(script.encode()).decode()
+    # Return the raw script: `az vm create --custom-data` base64-encodes it
+    # itself. Encoding here too made the VM receive base64 text, which
+    # cloud-init ignored, so the agent was never installed.
+    # az sends custom data through a latin-1 path; keep it ASCII (comments had em-dashes).
+    return script.encode("ascii", "replace").decode()
 
 
 def delete_vm_if_exists(region: str) -> None:
@@ -164,6 +172,17 @@ def delete_vm_if_exists(region: str) -> None:
 
 def create_spot_vm(region: str, sku: str, vm_id: str) -> str:
     """Create the spot VM. Returns the Azure resource id. Raises CalledProcessError."""
+    # Pass the script as a file (0600, removed afterwards) so the secret isn't in argv.
+    fd, path = tempfile.mkstemp(prefix="spotticker-cloudinit-", suffix=".sh")
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(build_cloud_init(vm_id, region, sku))
+        return _create_spot_vm(region, sku, vm_id, path)
+    finally:
+        os.unlink(path)
+
+
+def _create_spot_vm(region: str, sku: str, vm_id: str, custom_data_path: str) -> str:
     result = json.loads(az(
         "vm", "create",
         "--resource-group", RESOURCE_GROUP,
@@ -180,11 +199,18 @@ def create_spot_vm(region: str, sku: str, vm_id: str) -> str:
         "--os-disk-delete-option", "Delete",  # eviction otherwise orphans the disk (28 leaked in May)
         "--storage-sku", "StandardSSD_LRS",   # Premium is wasted on a heartbeat agent
         "--nic-delete-option", "Delete",
-        "--custom-data", build_cloud_init(vm_id, region, sku),
+        "--custom-data", custom_data_path,
         "--public-ip-sku", "Standard",  # needed for outbound internet on new VNets
         "--tags", f"spotticker-vm-id={vm_id}", "purpose=eviction-telemetry",
     ))
     return result.get("id", "")
+
+
+def az_error(stderr: str) -> str:
+    """az prints several WARNING lines before the real error; keep only the error."""
+    lines = [l for l in stderr.splitlines() if l.strip() and not l.startswith("WARNING")
+             and not l.startswith("Selecting ") and "aka.ms" not in l]
+    return " ".join(lines)[:400]
 
 
 def is_capacity_error(stderr: str) -> bool:
@@ -220,7 +246,7 @@ def launch(region: str, preferred_sku: str | None = None) -> tuple[str | None, s
             retire_other_skus(region, keep_sku=sku)
             return sku, f"created {sku} as {vm_id}"
         except subprocess.CalledProcessError as e:
-            last_err = e.stderr.strip()[:300]
+            last_err = az_error(e.stderr)
             # Don't leave a pending row behind for a SKU we couldn't get.
             rows = sb_get("monitored_vms", {"region": f"eq.{region}", "sku": f"eq.{sku}", "select": "id"})
             for row in rows:
