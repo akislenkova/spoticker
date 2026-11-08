@@ -22,7 +22,7 @@ from common import RESOURCE_GROUP, az, launch, sb_get
 REGIONS = [
     "eastus", "eastus2", "westus2", "westus3", "centralus",
     "canadacentral",
-    "westeurope", "northeurope", "francecentral",  # uksouth: no spot SKUs offered to this subscription
+    "westeurope", "francecentral",  # uksouth, northeurope: no small spot SKUs offered to this subscription
     "germanywestcentral", "swedencentral",
     "southeastasia", "eastasia", "japaneast", "koreacentral",
     "australiaeast", "centralindia",
