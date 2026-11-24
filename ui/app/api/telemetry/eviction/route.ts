@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-
-const SECRET = process.env.TELEMETRY_SECRET;
+import { checkTelemetrySecret } from "@/lib/telemetry-auth";
 
 export async function POST(req: NextRequest) {
-  if (SECRET && req.headers.get("x-telemetry-secret") !== SECRET) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const denied = checkTelemetrySecret(req);
+  if (denied) return denied;
 
   const { vm_id, region, sku, method } = await req.json();
   if (!vm_id || !region || !sku || !method) {

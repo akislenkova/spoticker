@@ -1,6 +1,5 @@
 "use client";
 
-import ConnectEmailStep from "@/components/ConnectEmailStep";
 import CopyField from "@/components/CopyField";
 import { createClient } from "@/lib/supabase/browser";
 import { useEffect, useState, type ReactNode } from "react";
@@ -72,11 +71,33 @@ export default function ConnectPage() {
   const [awsStarted, setAwsStarted] = useState(false);
   const [serverConfigured, setServerConfigured] = useState<boolean | null>(null);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [sessionError, setSessionError] = useState("");
 
+  // No email or password: visitors get an anonymous Supabase session, and the
+  // AWS account they connect (verified via AssumeRole) is their identity.
   useEffect(() => {
-    createClient()
-      .auth.getUser()
-      .then(({ data: { user } }) => setSignedIn(!!user));
+    const supabase = createClient();
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        setSignedIn(true);
+        return;
+      }
+      const { error } = await supabase.auth.signInAnonymously();
+      if (error) {
+        console.error("anonymous sign-in failed", error.message);
+        setSessionError(
+          error.status === 429
+            ? "Too many new sessions from this network. Try again in a few minutes."
+            : "Could not start a session. Try again."
+        );
+        setSignedIn(false);
+        return;
+      }
+      setSignedIn(true);
+    })();
   }, []);
 
   useEffect(() => {
@@ -160,13 +181,20 @@ export default function ConnectPage() {
           <p className="font-mono text-sm text-[#2d4038] animate-pulse">Loading…</p>
         )}
 
-        {signedIn === false && <ConnectEmailStep />}
+        {signedIn === false && (
+          <p className="font-mono text-sm text-[#d07080]">{sessionError}</p>
+        )}
 
         {signedIn === true && step === "init" && (
           <div className="space-y-4">
             <p className="font-mono text-sm text-[#4a6a58]">
               We generate a unique External ID, walk you through AWS CloudFormation, then verify
-              access. About 2–3 minutes.
+              access. About 2–3 minutes. No email or password: your AWS account is your login.
+            </p>
+            <p className="font-mono text-xs text-[#2d4038]">
+              Already connected from another browser? Don&apos;t create a second stack. Update your
+              existing <code className="text-[#4a6a58]">SpottickerReadOnly</code> stack&apos;s
+              ExternalId parameter to the new value, then verify with the same RoleArn.
             </p>
             {serverConfigured === false && (
               <div className="font-mono text-sm rounded border border-[rgba(255,149,0,0.25)] bg-[rgba(255,149,0,0.06)] p-3 space-y-2">

@@ -1,0 +1,47 @@
+name: Azure telemetry respawner
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"   # every 30 min; only affects how fast an evicted region is replaced
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only report what would be relaunched"
+        type: boolean
+        default: false
+
+concurrency:
+  group: azure-telemetry-respawn
+  cancel-in-progress: false
+
+jobs:
+  respawn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      # Service principal needs Contributor on the spotticker-telemetry resource group.
+      - name: Azure login
+        env:
+          AZURE_CLIENT_ID:     ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID:     ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          az login --service-principal -u "$AZURE_CLIENT_ID" -p "$AZURE_CLIENT_SECRET" --tenant "$AZURE_TENANT_ID" --output none
+
+      - name: Run respawner
+        working-directory: azure/telemetry
+        env:
+          SUPABASE_URL:     ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:     ${{ secrets.SUPABASE_SERVICE_KEY }}
+          COLLECTOR_URL:    ${{ secrets.TELEMETRY_COLLECTOR_URL }}
+          TELEMETRY_SECRET: ${{ secrets.TELEMETRY_SECRET }}
+        run: python respawner.py ${{ inputs.dry_run && '--dry-run' || '' }}

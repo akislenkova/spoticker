@@ -1,155 +1,98 @@
 """
-Checks for VMs with stale heartbeats, records missed-heartbeat evictions,
-and reprovisioning new VMs to replace them.
+Keeps the eviction-telemetry fleet alive. Run on a schedule (see
+.github/workflows/azure-telemetry-respawn.yml).
 
-Designed to run every 15 minutes via GitHub Actions cron.
+Each run, per region:
+  running, heartbeat older than STALE_THRESHOLD  → record missed_heartbeat eviction, relaunch
+  evicted (agent saw IMDS Preempt)               → relaunch (event already recorded by collector)
+  pending, no heartbeat after BOOT_GRACE         → boot failure (not an eviction), relaunch
+  reprovisioning (last create failed)            → retry
+  retired                                        → ignored
 
-Env vars: SUPABASE_URL, SUPABASE_KEY, COLLECTOR_URL, TELEMETRY_SECRET
+Usage:
+  python respawner.py [--dry-run]
 """
 
-import os
-import json
-import subprocess
-import base64
-from datetime import datetime, timezone, timedelta
-from pathlib import Path
+import argparse
+from datetime import datetime, timedelta, timezone
 
-import requests as http
+from common import launch, now_iso, sb_get, sb_patch, sb_post
 
-SUPABASE_URL  = os.environ["SUPABASE_URL"].rstrip("/")
-SUPABASE_KEY  = os.environ["SUPABASE_KEY"]
-COLLECTOR_URL = os.environ["COLLECTOR_URL"]
-TELEMETRY_SECRET = os.environ.get("TELEMETRY_SECRET", "")
-
-RESOURCE_GROUP   = "spotticker-telemetry"
-SKU              = "Standard_B1s"
-IMAGE            = "Ubuntu2204"
-ADMIN_USER       = "spotticker"
-STALE_THRESHOLD  = timedelta(minutes=10)  # no heartbeat → evicted
-
-SUPABASE_HEADERS = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json",
-    "Prefer": "resolution=merge-duplicates",
-}
-
-AGENT_SOURCE = (Path(__file__).parent / "agent.py").read_text()
-CLOUD_INIT_TEMPLATE = (Path(__file__).parent / "cloud_init.sh").read_text()
+STALE_THRESHOLD = timedelta(minutes=10)  # running + no heartbeat for this long → evicted
+BOOT_GRACE = timedelta(minutes=15)       # pending this long without a first heartbeat → boot failed
 
 
-def az(*args) -> str:
-    result = subprocess.run(
-        ["az", *args, "--output", "json"],
-        capture_output=True, text=True, check=True,
-    )
-    return result.stdout.strip()
+def parse_ts(value: str | None) -> datetime | None:
+    return datetime.fromisoformat(value) if value else None
 
 
-def get_stale_vms() -> list[dict]:
-    cutoff = (datetime.now(timezone.utc) - STALE_THRESHOLD).isoformat()
-    resp = http.get(
-        f"{SUPABASE_URL}/rest/v1/monitored_vms",
-        params={
-            "status": "eq.running",
-            "last_heartbeat": f"lt.{cutoff}",
-        },
-        headers=SUPABASE_HEADERS,
-    )
-    return resp.json()
+def classify(vm: dict, now: datetime) -> str | None:
+    """Returns why this row needs a relaunch, or None if it's healthy."""
+    status = vm["status"]
+    last_hb = parse_ts(vm.get("last_heartbeat"))
+    started = parse_ts(vm.get("started_at"))
+
+    if status == "evicted":
+        return "evicted"
+    if status == "reprovisioning":
+        return "retry"
+    if status == "running":
+        if last_hb and now - last_hb > STALE_THRESHOLD:
+            return "stale"
+        if not last_hb and (not started or now - started > BOOT_GRACE):
+            return "never_booted"  # legacy rows registered as running with no heartbeat
+        return None
+    if status == "pending":
+        if not started or now - started > BOOT_GRACE:
+            return "never_booted"
+        return None
+    return None
 
 
-def record_eviction(vm: dict) -> None:
-    uptime = None
-    if vm.get("started_at"):
-        started = datetime.fromisoformat(vm["started_at"])
-        uptime = int((datetime.now(timezone.utc) - started).total_seconds())
-
-    http.post(
-        f"{SUPABASE_URL}/rest/v1/eviction_events",
-        json={
-            "vm_id": vm["vm_id"],
-            "region": vm["region"],
-            "sku": vm["sku"],
-            "detection_method": "missed_heartbeat",
-            "uptime_seconds": uptime,
-        },
-        headers=SUPABASE_HEADERS,
-    )
-    http.patch(
-        f"{SUPABASE_URL}/rest/v1/monitored_vms?id=eq.{vm['id']}",
-        json={"status": "evicted", "vm_id": None},
-        headers=SUPABASE_HEADERS,
-    )
-
-
-def build_cloud_init(vm_id: str, region: str) -> str:
-    script = (
-        CLOUD_INIT_TEMPLATE
-        .replace("{{AGENT_SOURCE}}", AGENT_SOURCE)
-        .replace("{{COLLECTOR_URL}}", COLLECTOR_URL)
-        .replace("{{TELEMETRY_SECRET}}", TELEMETRY_SECRET)
-        .replace("{{VM_ID}}", vm_id)
-        .replace("{{REGION}}", region)
-        .replace("{{SKU}}", SKU)
-    )
-    return base64.b64encode(script.encode()).decode()
-
-
-def reprovision(region: str, monitored_id: str) -> None:
-    vm_name = f"spotticker-{region}"
-    placeholder_id = f"pending-{monitored_id}"
-    cloud_init_b64 = build_cloud_init(placeholder_id, region)
-
-    try:
-        result = json.loads(az(
-            "vm", "create",
-            "--resource-group", RESOURCE_GROUP,
-            "--name", vm_name,
-            "--location", region,
-            "--image", IMAGE,
-            "--size", SKU,
-            "--priority", "Spot",
-            "--eviction-policy", "Delete",
-            "--max-price", "-1",
-            "--admin-username", ADMIN_USER,
-            "--generate-ssh-keys",
-            "--custom-data", cloud_init_b64,
-            "--public-ip-sku", "Standard",
-        ))
-        new_vm_id = result.get("id", placeholder_id)
-
-        http.patch(
-            f"{SUPABASE_URL}/rest/v1/monitored_vms?id=eq.{monitored_id}",
-            json={
-                "vm_id": new_vm_id,
-                "status": "running",
-                "started_at": datetime.now(timezone.utc).isoformat(),
-                "last_heartbeat": None,
-            },
-            headers=SUPABASE_HEADERS,
-        )
-        print(f"  {region}: reprovisioned → {new_vm_id[:60]}")
-    except subprocess.CalledProcessError as e:
-        print(f"  {region}: reprovision FAILED — {e.stderr[:200]}")
-        http.patch(
-            f"{SUPABASE_URL}/rest/v1/monitored_vms?id=eq.{monitored_id}",
-            json={"status": "reprovisioning"},
-            headers=SUPABASE_HEADERS,
-        )
+def record_missed_heartbeat(vm: dict, now: datetime) -> None:
+    started = parse_ts(vm.get("started_at"))
+    sb_post("eviction_events", {
+        "vm_id": vm["vm_id"],
+        "region": vm["region"],
+        "sku": vm["sku"],
+        "detection_method": "missed_heartbeat",
+        "uptime_seconds": int((now - started).total_seconds()) if started else None,
+    })
+    sb_patch("monitored_vms", vm["id"], {"status": "evicted", "last_heartbeat": None})
 
 
 def main() -> None:
-    stale = get_stale_vms()
-    if not stale:
-        print("All VMs healthy.")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+
+    now = datetime.now(timezone.utc)
+    rows = sb_get("monitored_vms", {"status": "neq.retired", "select": "*"})
+
+    # One VM per region; if a region somehow has several rows, act once.
+    actions: dict[str, tuple[dict, str]] = {}
+    for vm in rows:
+        reason = classify(vm, now)
+        if reason and vm["region"] not in actions:
+            actions[vm["region"]] = (vm, reason)
+
+    if not actions:
+        print(f"All {len(rows)} VM(s) healthy at {now_iso()}.")
         return
 
-    print(f"{len(stale)} stale VM(s) detected:")
-    for vm in stale:
-        print(f"  {vm['region']} — last heartbeat: {vm.get('last_heartbeat', 'never')}")
-        record_eviction(vm)
-        reprovision(vm["region"], vm["id"])
+    print(f"{len(actions)} region(s) need attention:")
+    for region, (vm, reason) in sorted(actions.items()):
+        print(f"  {region} [{vm['sku']}] — {reason}, last heartbeat: {vm.get('last_heartbeat') or 'never'}")
+        if args.dry_run:
+            continue
+        if reason == "stale":
+            record_missed_heartbeat(vm, now)
+        try:
+            _, msg = launch(region, preferred_sku=vm["sku"])
+        except Exception as exc:  # one bad region shouldn't stop the rest
+            msg = f"FAILED: {exc}"
+            sb_patch("monitored_vms", vm["id"], {"status": "reprovisioning"})
+        print(f"    → {msg}")
 
 
 if __name__ == "__main__":
