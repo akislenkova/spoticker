@@ -37,7 +37,9 @@ export default async function AuthHeader() {
           </Link>
           {user ? (
             <>
-              <span className="text-[#2d4038] truncate max-w-[200px] tracking-wide">{user.email}</span>
+              {user.email && (
+                <span className="text-[#2d4038] truncate max-w-[200px] tracking-wide">{user.email}</span>
+              )}
               <Link
                 href="/connect"
                 className="text-[#4a6a58] hover:text-[#00ff88] transition-colors tracking-wider"

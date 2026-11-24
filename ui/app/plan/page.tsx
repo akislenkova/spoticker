@@ -51,9 +51,7 @@ export default function PlanPage() {
     try {
       const res = await fetch("/api/plan", { method: "POST", body: form });
       const data = await res.json();
-      if (res.status === 401) {
-        setError("Sign in to run an analysis. Continue at /connect to verify your email.");
-      } else if (!res.ok) {
+      if (!res.ok) {
         setError(data.error ?? `Error ${res.status}`);
       } else {
         setResult(data as PlanResult);
